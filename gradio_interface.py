@@ -5,7 +5,7 @@ import os
 from PIL import Image
 import warnings
 import yfinance as yf
-from stock_prediction_lstm import predict, format_feature
+from model import predict, format_feature
 from RLagent import process_stock
 from datetime import datetime
 from process_stock_data import get_stock_data, clean_csv_files
