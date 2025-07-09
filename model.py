@@ -49,22 +49,20 @@ class GRUModel(nn.Module):
         return out
 
 def train_and_predict_gru(ticker, data, X, y, save_dir, n_steps=60, num_epochs=500, batch_size=32, learning_rate=0.001):
-    # 数据归一化和准备部分（与 LSTM 相同）
+    # 数据归一化和准备部分
     scaler_y = MinMaxScaler()
     scaler_X = MinMaxScaler()
     scaler_y.fit(y.values.reshape(-1, 1))
-    y_scaled = scaler_y.transform(y.values.reshape(-1, 1))
+    y_scaled = scaler_y.transform(y.values.reshape(-1, 1)).flatten()
     X_scaled = scaler_X.fit_transform(X)
 
-    X_train, y_train = prepare_data(X_scaled, n_steps)
-    y_train = y_scaled[n_steps-1:-1]
-
-    train_per = 0.8
-    split_index = int(train_per * len(X_train))
-    X_val = X_train[split_index-n_steps+1:]
-    y_val = y_train[split_index-n_steps+1:]
-    X_train = X_train[:split_index]
-    y_train = y_train[:split_index]
+    # 使用新的时间序列数据准备函数，避免数据泄露
+    data_splits = prepare_time_series_data(X_scaled, y_scaled, n_steps, train_ratio=0.8)
+    X_train = data_splits['X_train']
+    y_train = data_splits['y_train']
+    X_val = data_splits['X_val']
+    y_val = data_splits['y_val']
+    split_index = data_splits['split_idx']
 
     # PyTorch数据准备（与 LSTM 相同）
     X_train_tensor = torch.tensor(X_train, dtype=torch.float32).to(device)
@@ -116,10 +114,10 @@ def train_and_predict_gru(ticker, data, X, y, save_dir, n_steps=60, num_epochs=5
             pbar.update(1)
             scheduler.step()
 
-    # 使用可视化工具绘制损失曲线（与 LSTM 相同）
-    plot_training_loss(ticker, train_losses, val_losses, save_dir, model_type='GRU')
+    # 使用可视化工具绘制损失曲线
+    plot_training_loss(ticker, train_losses, val_losses, save_dir)
 
-    # 预测（与 LSTM 相同）
+    # 预测
     model.eval()
     predictions = []
     test_indices = []
@@ -127,18 +125,23 @@ def train_and_predict_gru(ticker, data, X, y, save_dir, n_steps=60, num_epochs=5
     actual_percentages = []
 
     with torch.no_grad():
-        for i in range(1 + split_index, len(X_scaled) + 1):
-            x_input = torch.tensor(X_scaled[i - n_steps:i].reshape(1, n_steps, X_train.shape[2]), 
-                                 dtype=torch.float32).to(device)
-            y_pred = model(x_input)
-            y_pred = scaler_y.inverse_transform(y_pred.cpu().numpy().reshape(-1, 1))
-            predictions.append((1 + y_pred[0][0]) * data['Close'].iloc[i - 2])
-            test_indices.append(data.index[i - 1])
-            predict_percentages.append(y_pred[0][0] * 100)
-            actual_percentages.append(y[i - 1] * 100)
+        # 使用验证集进行预测
+        for i, x_input in enumerate(X_val):
+            x_input_tensor = torch.tensor(x_input.reshape(1, n_steps, X_train.shape[2]),
+                                        dtype=torch.float32).to(device)
+            y_pred = model(x_input_tensor)
+            y_pred_value = y_pred.cpu().numpy().flatten()[0]
 
-    # 使用可视化工具绘制累积收益率曲线（与 LSTM 相同）
-    plot_cumulative_earnings(ticker, test_indices, actual_percentages, predict_percentages, save_dir, model_type='GRU')
+            # 计算对应的原始数据索引
+            original_idx = split_index + n_steps + i
+            if original_idx < len(data):
+                predictions.append((1 + y_pred_value) * data['Close'].iloc[original_idx - 1])
+                test_indices.append(data.index[original_idx])
+                predict_percentages.append(y_pred_value * 100)
+                actual_percentages.append(y.iloc[original_idx] * 100)
+
+    # 使用可视化工具绘制累积收益率曲线
+    plot_cumulative_earnings(ticker, test_indices, actual_percentages, predict_percentages, save_dir)
 
     predict_result = {str(date): pred / 100 for date, pred in zip(test_indices, predict_percentages)}
     return predict_result, test_indices, predictions, actual_percentages
@@ -165,6 +168,40 @@ def prepare_data(data, n_steps):
         y.append(data[i + n_steps])
     return np.array(X), np.array(y)
 
+def prepare_time_series_data(X_scaled, y_scaled, n_steps, train_ratio=0.8):
+    """
+    正确的时间序列数据划分函数，避免数据泄露
+
+    Parameters:
+        X_scaled: 标准化后的特征数据
+        y_scaled: 标准化后的目标数据
+        n_steps: 时间窗口大小
+        train_ratio: 训练集比例
+
+    Returns:
+        dict: 包含训练集和验证集的字典
+    """
+    X_sequences, y_sequences = [], []
+
+    # 正确创建时间序列序列
+    for i in range(n_steps, len(X_scaled)):
+        X_sequences.append(X_scaled[i-n_steps:i])
+        y_sequences.append(y_scaled[i])
+
+    X_sequences = np.array(X_sequences)
+    y_sequences = np.array(y_sequences)
+
+    # 按时间顺序划分训练集和验证集（避免数据泄露）
+    split_idx = int(len(X_sequences) * train_ratio)
+
+    return {
+        'X_train': X_sequences[:split_idx],
+        'y_train': y_sequences[:split_idx],
+        'X_val': X_sequences[split_idx:],
+        'y_val': y_sequences[split_idx:],
+        'split_idx': split_idx
+    }
+
 def visualize_predictions(ticker, data, predict_result, test_indices, predictions, actual_percentages, save_dir):
     actual_prices = data['Close'].loc[test_indices].values
     predicted_prices = np.array(predictions)
@@ -184,18 +221,16 @@ def train_and_predict_lstm(ticker, data, X, y, save_dir, n_steps=60, num_epochs=
     scaler_y = MinMaxScaler()
     scaler_X = MinMaxScaler()
     scaler_y.fit(y.values.reshape(-1, 1))
-    y_scaled = scaler_y.transform(y.values.reshape(-1, 1))
+    y_scaled = scaler_y.transform(y.values.reshape(-1, 1)).flatten()
     X_scaled = scaler_X.fit_transform(X)
 
-    X_train, y_train = prepare_data(X_scaled, n_steps)
-    y_train = y_scaled[n_steps-1:-1]
-
-    train_per = 0.8
-    split_index = int(train_per * len(X_train))
-    X_val = X_train[split_index-n_steps+1:]
-    y_val = y_train[split_index-n_steps+1:]
-    X_train = X_train[:split_index]
-    y_train = y_train[:split_index]
+    # 使用新的时间序列数据准备函数，避免数据泄露
+    data_splits = prepare_time_series_data(X_scaled, y_scaled, n_steps, train_ratio=0.8)
+    X_train = data_splits['X_train']
+    y_train = data_splits['y_train']
+    X_val = data_splits['X_val']
+    y_val = data_splits['y_val']
+    split_index = data_splits['split_idx']
 
     # PyTorch数据准备
     X_train_tensor = torch.tensor(X_train, dtype=torch.float32).to(device)
@@ -258,15 +293,20 @@ def train_and_predict_lstm(ticker, data, X, y, save_dir, n_steps=60, num_epochs=
     actual_percentages = []
 
     with torch.no_grad():
-        for i in range(1 + split_index, len(X_scaled) + 1):
-            x_input = torch.tensor(X_scaled[i - n_steps:i].reshape(1, n_steps, X_train.shape[2]), 
-                                 dtype=torch.float32).to(device)
-            y_pred = model(x_input)
-            y_pred = scaler_y.inverse_transform(y_pred.cpu().numpy().reshape(-1, 1))
-            predictions.append((1 + y_pred[0][0]) * data['Close'].iloc[i - 2])
-            test_indices.append(data.index[i - 1])
-            predict_percentages.append(y_pred[0][0] * 100)
-            actual_percentages.append(y[i - 1] * 100)
+        # 使用验证集进行预测
+        for i, x_input in enumerate(X_val):
+            x_input_tensor = torch.tensor(x_input.reshape(1, n_steps, X_train.shape[2]),
+                                        dtype=torch.float32).to(device)
+            y_pred = model(x_input_tensor)
+            y_pred_value = y_pred.cpu().numpy().flatten()[0]
+
+            # 计算对应的原始数据索引
+            original_idx = split_index + n_steps + i
+            if original_idx < len(data):
+                predictions.append((1 + y_pred_value) * data['Close'].iloc[original_idx - 1])
+                test_indices.append(data.index[original_idx])
+                predict_percentages.append(y_pred_value * 100)
+                actual_percentages.append(y.iloc[original_idx] * 100)
 
     # 使用可视化工具绘制累积收益率曲线
     plot_cumulative_earnings(ticker, test_indices, actual_percentages, predict_percentages, save_dir)
@@ -308,7 +348,7 @@ def predict(ticker_name, stock_data, stock_features, save_dir, model_type='LSTM'
 
     all_predictions[ticker_name] = predict_result
 
-    metrics = visualize_predictions(ticker_name, data, predict_result, test_indices, predictions, actual_percentages, save_dir, model_type=model_type)
+    metrics = visualize_predictions(ticker_name, data, predict_result, test_indices, predictions, actual_percentages, save_dir)
     prediction_metrics[ticker_name] = metrics
 
     save_predictions_with_indices(ticker_name, test_indices, predictions, save_dir)
@@ -320,8 +360,8 @@ def predict(ticker_name, stock_data, stock_features, save_dir, model_type='LSTM'
     print("\nPrediction metrics summary:")
     print(metrics_df.describe())
 
-    # 使用可视化工具绘制准确度对比图（与 LSTM 相同）
-    plot_accuracy_comparison(prediction_metrics, save_dir, model_type=model_type)
+    # 使用可视化工具绘制准确度对比图
+    plot_accuracy_comparison(prediction_metrics, save_dir)
 
     # 生成汇总报告（与 LSTM 相同）
     summary = {
