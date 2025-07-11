@@ -125,12 +125,31 @@ class GRUModel(nn.Module):
 
 def train_and_predict_gru(ticker, data, X, y, save_dir, n_steps=30, num_epochs=500, batch_size=64, learning_rate=0.001):
     # Reference: Chen, K., Zhou, Y., & Dai, F. (2015, October). A LSTM-based method for stock returns prediction: A case study of China stock market. In 2015 IEEE international conference on big data (big data) (pp. 2823-2824). IEEE.
-    # 数据归一化和准备部分
+
+    # 首先按时间顺序划分数据，避免数据泄露
+    split_idx = int(len(X) * 0.8)
+    X_train_raw = X.iloc[:split_idx]
+    X_test_raw = X.iloc[split_idx:]
+    y_train_raw = y.iloc[:split_idx]
+    y_test_raw = y.iloc[split_idx:]
+
+    # 数据归一化 - 只在训练集上拟合标准化器
     scaler_y = MinMaxScaler()
     scaler_X = MinMaxScaler()
-    scaler_y.fit(y.values.reshape(-1, 1))
-    y_scaled = scaler_y.transform(y.values.reshape(-1, 1)).flatten()
-    X_scaled = scaler_X.fit_transform(X)
+
+    # 只在训练集上拟合
+    scaler_y.fit(y_train_raw.values.reshape(-1, 1))
+    scaler_X.fit(X_train_raw)
+
+    # 分别转换训练集和测试集
+    y_train_scaled = scaler_y.transform(y_train_raw.values.reshape(-1, 1)).flatten()
+    y_test_scaled = scaler_y.transform(y_test_raw.values.reshape(-1, 1)).flatten()
+    X_train_scaled = scaler_X.transform(X_train_raw)
+    X_test_scaled = scaler_X.transform(X_test_raw)
+
+    # 重新组合用于时间序列处理
+    X_scaled = np.vstack([X_train_scaled, X_test_scaled])
+    y_scaled = np.concatenate([y_train_scaled, y_test_scaled])
 
     # 使用新的时间序列数据准备函数，避免数据泄露
     data_splits = prepare_time_series_data(X_scaled, y_scaled, n_steps, train_ratio=0.8)
@@ -208,10 +227,13 @@ def train_and_predict_gru(ticker, data, X, y, save_dir, n_steps=30, num_epochs=5
             x_input_tensor = torch.tensor(x_input.reshape(1, n_steps, X_train.shape[2]),
                                           dtype=torch.float32).to(device)
             y_pred = model(x_input_tensor)
-            y_pred_value = y_pred.cpu().numpy().flatten()[0]
+            y_pred_scaled = y_pred.cpu().numpy().flatten()[0]
+
+            # 反标准化预测值
+            y_pred_value = scaler_y.inverse_transform([[y_pred_scaled]])[0][0]
 
             # 计算对应的原始数据索引
-            original_idx = split_index + n_steps + i
+            original_idx = split_idx + n_steps + i
             if original_idx < len(data):
                 predictions.append((1 + y_pred_value) * data['Close'].iloc[original_idx - 1])
                 test_indices.append(data.index[original_idx])
@@ -227,8 +249,13 @@ def train_and_predict_gru(ticker, data, X, y, save_dir, n_steps=30, num_epochs=5
 
 def get_stock_data(ticker, data_dir='data'):
     file_path = os.path.join(data_dir, f'{ticker}.csv')
-    data = pd.read_csv(file_path, index_col='Date', parse_dates=True)
-    return data
+    try:
+        data = pd.read_csv(file_path, index_col='Date', parse_dates=True)
+        return data
+    except FileNotFoundError:
+        raise FileNotFoundError(f"数据文件 {file_path} 不存在，请检查文件路径和文件名")
+    except Exception as e:
+        raise Exception(f"读取文件 {file_path} 时发生错误: {str(e)}")
 
 
 def format_feature(data):
@@ -239,6 +266,16 @@ def format_feature(data):
     ]
     X = data[features].iloc[1:]
     y = data['Close'].pct_change().iloc[1:]
+
+    # 检查是否有NaN值
+    if X.isnull().any().any():
+        print("警告: 特征数据中存在NaN值，将使用前向填充")
+        X = X.fillna(method='ffill')
+
+    if y.isnull().any():
+        print("警告: 目标数据中存在NaN值，将使用前向填充")
+        y = y.fillna(method='ffill')
+
     return X, y
 
 
@@ -303,12 +340,31 @@ def visualize_predictions(ticker, data, predict_result, test_indices, prediction
 def train_and_predict_lstm(ticker, data, X, y, save_dir, n_steps=30, num_epochs=500, batch_size=64,
                            learning_rate=0.001):
     # Reference: Chen, K., Zhou, Y., & Dai, F. (2015, October). A LSTM-based method for stock returns prediction: A case study of China stock market. In 2015 IEEE international conference on big data (big data) (pp. 2823-2824). IEEE.
-    # 数据归一化和准备部分
+
+    # 首先按时间顺序划分数据，避免数据泄露
+    split_idx = int(len(X) * 0.8)
+    X_train_raw = X.iloc[:split_idx]
+    X_test_raw = X.iloc[split_idx:]
+    y_train_raw = y.iloc[:split_idx]
+    y_test_raw = y.iloc[split_idx:]
+
+    # 数据归一化 - 只在训练集上拟合标准化器
     scaler_y = MinMaxScaler()
     scaler_X = MinMaxScaler()
-    scaler_y.fit(y.values.reshape(-1, 1))
-    y_scaled = scaler_y.transform(y.values.reshape(-1, 1)).flatten()
-    X_scaled = scaler_X.fit_transform(X)
+
+    # 只在训练集上拟合
+    scaler_y.fit(y_train_raw.values.reshape(-1, 1))
+    scaler_X.fit(X_train_raw)
+
+    # 分别转换训练集和测试集
+    y_train_scaled = scaler_y.transform(y_train_raw.values.reshape(-1, 1)).flatten()
+    y_test_scaled = scaler_y.transform(y_test_raw.values.reshape(-1, 1)).flatten()
+    X_train_scaled = scaler_X.transform(X_train_raw)
+    X_test_scaled = scaler_X.transform(X_test_raw)
+
+    # 重新组合用于时间序列处理
+    X_scaled = np.vstack([X_train_scaled, X_test_scaled])
+    y_scaled = np.concatenate([y_train_scaled, y_test_scaled])
 
     # 使用新的时间序列数据准备函数，避免数据泄露
     data_splits = prepare_time_series_data(X_scaled, y_scaled, n_steps, train_ratio=0.8)
@@ -386,10 +442,13 @@ def train_and_predict_lstm(ticker, data, X, y, save_dir, n_steps=30, num_epochs=
             x_input_tensor = torch.tensor(x_input.reshape(1, n_steps, X_train.shape[2]),
                                           dtype=torch.float32).to(device)
             y_pred = model(x_input_tensor)
-            y_pred_value = y_pred.cpu().numpy().flatten()[0]
+            y_pred_scaled = y_pred.cpu().numpy().flatten()[0]
+
+            # 反标准化预测值
+            y_pred_value = scaler_y.inverse_transform([[y_pred_scaled]])[0][0]
 
             # 计算对应的原始数据索引
-            original_idx = split_index + n_steps + i
+            original_idx = split_idx + n_steps + i
             if original_idx < len(data):
                 predictions.append((1 + y_pred_value) * data['Close'].iloc[original_idx - 1])
                 test_indices.append(data.index[original_idx])
@@ -489,23 +548,29 @@ if __name__ == "__main__":
 
     save_dir = 'results'  # 设置保存目录
     for ticker_name in tickers:
-        stock_data = get_stock_data(ticker_name)
-        stock_features = format_feature(stock_data)
+        try:
+            print(f"\n正在处理股票: {ticker_name}")
+            stock_data = get_stock_data(ticker_name)
+            stock_features = format_feature(stock_data)
 
-        # 使用带注意力机制的双向LSTM模型
-        predict(
-            ticker_name=ticker_name,
-            stock_data=stock_data,
-            stock_features=stock_features,
-            save_dir=save_dir,
-            model_type='LSTM'
-        )
+            # 使用带注意力机制的双向LSTM模型
+            predict(
+                ticker_name=ticker_name,
+                stock_data=stock_data,
+                stock_features=stock_features,
+                save_dir=save_dir,
+                model_type='LSTM'
+            )
 
-        # 使用带注意力机制的双向GRU模型
-        predict(
-            ticker_name=ticker_name,
-            stock_data=stock_data,
-            stock_features=stock_features,
-            save_dir=save_dir,
-            model_type='GRU'
-        )
+            # 使用带注意力机制的双向GRU模型
+            predict(
+                ticker_name=ticker_name,
+                stock_data=stock_data,
+                stock_features=stock_features,
+                save_dir=save_dir,
+                model_type='GRU'
+            )
+        except Exception as e:
+            print(f"处理股票 {ticker_name} 时发生错误: {str(e)}")
+            print(f"跳过股票 {ticker_name}，继续处理下一个...")
+            continue
