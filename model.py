@@ -123,7 +123,8 @@ class GRUModel(nn.Module):
         return out
 
 
-def train_and_predict_gru(ticker, data, X, y, save_dir, n_steps=60, num_epochs=500, batch_size=32, learning_rate=0.001):
+def train_and_predict_gru(ticker, data, X, y, save_dir, n_steps=30, num_epochs=500, batch_size=64, learning_rate=0.001):
+    # Reference: Chen, K., Zhou, Y., & Dai, F. (2015, October). A LSTM-based method for stock returns prediction: A case study of China stock market. In 2015 IEEE international conference on big data (big data) (pp. 2823-2824). IEEE.
     # 数据归一化和准备部分
     scaler_y = MinMaxScaler()
     scaler_X = MinMaxScaler()
