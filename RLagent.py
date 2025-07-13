@@ -6,289 +6,286 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import random
 from visualization import plot_trading_result
-sns.set()
 
-class Deep_Evolution_Strategy:
+sns.set_style('whitegrid')
+
+
+class EvolutionaryOptimizer:
     """
-    Deep Evolution Strategy Class
-    
-    Parameters:
-        weights: Model weights
-        reward_function: Reward function
-        population_size: Population size
-        sigma: Perturbation standard deviation
-        learning_rate: Learning rate
+    Evolutionary Optimization Strategy
+
+    Args:
+        model_params: Parameters of the model
+        fitness_func: Fitness evaluation function
+        pop_count: Number of individuals in population
+        mutation_rate: Standard deviation for mutations
+        adapt_rate: Adaptation rate for updates
     """
-    def __init__(self, weights, reward_function, population_size, sigma, learning_rate):
-        self.weights = weights
-        self.reward_function = reward_function
-        self.population_size = population_size
-        self.sigma = sigma
-        self.learning_rate = learning_rate
 
-    def _get_weight_from_population(self, weights, population):
-        """Generate perturbed weights"""
-        weights_population = []
-        for index, i in enumerate(population):
-            jittered = self.sigma * i
-            weights_population.append(weights[index] + jittered)
-        return weights_population
+    def __init__(self, model_params, fitness_func, pop_count, mutation_rate, adapt_rate):
+        self.model_params = model_params
+        self.fitness_func = fitness_func
+        self.pop_count = pop_count
+        self.mutation_rate = mutation_rate
+        self.adapt_rate = adapt_rate
 
-    def get_weights(self):
-        """Get current weights"""
-        return self.weights
+    def _generate_perturbed_params(self, base_params, perturbations):
+        param_variants = []
+        for idx, param in enumerate(perturbations):
+            variation = self.mutation_rate * param
+            param_variants.append(base_params[idx] + variation)
+        return param_variants
 
-    def train(self, epoch=100, print_every=1):
-        """
-        Train the model
-        
-        Parameters:
-            epoch: Number of training epochs
-            print_every: Print frequency
-        """
-        lasttime = time.time()
-        for i in range(epoch):
+    def get_current_params(self):
+        return self.model_params
+
+    def optimize(self, generations=100, report_interval=1):
+        start_time = time.time()
+        for gen in range(generations):
             population = []
-            rewards = np.zeros(self.population_size)
-            # Generate population
-            for k in range(self.population_size):
-                x = []
-                for w in self.weights:
-                    x.append(np.random.randn(*w.shape))
-                population.append(x)
-            # Calculate reward for each individual
-            for k in range(self.population_size):
-                weights_population = self._get_weight_from_population(self.weights, population[k])
-                rewards[k] = self.reward_function(weights_population)
-            # Normalize rewards
-            rewards = (rewards - np.mean(rewards)) / (np.std(rewards) + 1e-7)
-            # Update weights
-            for index, w in enumerate(self.weights):
-                A = np.array([p[index] for p in population])
-                self.weights[index] = (
-                    w
-                    + self.learning_rate
-                    / (self.population_size * self.sigma)
-                    * np.dot(A.T, rewards).T
+            fitness_scores = np.zeros(self.pop_count)
+
+            # Create population
+            for _ in range(self.pop_count):
+                individual = []
+                for param in self.model_params:
+                    individual.append(np.random.randn(*param.shape))
+                population.append(individual)
+
+            # Evaluate fitness
+            for k in range(self.pop_count):
+                candidate_params = self._generate_perturbed_params(self.model_params, population[k])
+                fitness_scores[k] = self.fitness_func(candidate_params)
+
+            # Normalize scores
+            fitness_scores = (fitness_scores - np.mean(fitness_scores)) / (np.std(fitness_scores) + 1e-7)
+
+            # Update parameters
+            for idx, param in enumerate(self.model_params):
+                perturbations_matrix = np.array([p[idx] for p in population])
+                self.model_params[idx] = (
+                        param + self.adapt_rate / (self.pop_count * self.mutation_rate)
+                        * np.dot(perturbations_matrix.T, fitness_scores).T
                 )
-            if (i + 1) % print_every == 0:
-                print('iter %d. reward: %f' % (i + 1, self.reward_function(self.weights)))
-        print('time taken to train:', time.time() - lasttime, 'seconds')
+
+            if (gen + 1) % report_interval == 0:
+                print(f'Generation {gen + 1}. Fitness: {self.fitness_func(self.model_params):.3f}')
+        print(f'Optimization completed in {time.time() - start_time:.2f} seconds')
 
 
-class Model:
+class NeuralNetwork:
     """
-    Neural Network Model Class
-    
-    Parameters:
-        input_size: Input dimension
-        layer_size: Hidden layer size
-        output_size: Output dimension
+    Neural Network Model
+
+    Args:
+        input_dim: Input dimension size
+        hidden_dim: Hidden layer size
+        output_dim: Output dimension size
     """
-    def __init__(self, input_size, layer_size, output_size):
-        self.weights = [
-            np.random.randn(input_size, layer_size),
-            np.random.randn(layer_size, output_size),
-            np.random.randn(1, layer_size),
+
+    def __init__(self, input_dim, hidden_dim, output_dim):
+        self.parameters = [
+            np.random.randn(input_dim, hidden_dim),
+            np.random.randn(hidden_dim, output_dim),
+            np.random.randn(1, hidden_dim),
         ]
 
-    def predict(self, inputs):
-        """Prediction function"""
-        feed = np.dot(inputs, self.weights[0]) + self.weights[-1]
-        decision = np.dot(feed, self.weights[1])
-        return decision
+    def forward(self, input_data):
+        hidden_layer = np.dot(input_data, self.parameters[0]) + self.parameters[-1]
+        output = np.dot(hidden_layer, self.parameters[1])
+        return output
 
-    def get_weights(self):
-        """Get model weights"""
-        return self.weights
+    def get_parameters(self):
+        return self.parameters
 
-    def set_weights(self, weights):
-        """Set model weights"""
-        self.weights = weights
+    def set_parameters(self, new_params):
+        self.parameters = new_params
 
 
-class Agent:
+class TradingStrategy:
     """
-    Trading Agent Class
-    
-    Parameters:
-        model: Prediction model
-        window_size: Time window size
-        trend: Price sequence
-        skip: Skip steps
-        initial_money: Initial capital
-        ticker: Stock symbol
-    """
-    POPULATION_SIZE = 15
-    SIGMA = 0.1
-    LEARNING_RATE = 0.03
+    Stock Trading Strategy Implementation
 
-    def __init__(self, model, window_size, trend, skip, initial_money, ticker, save_dir):
-        self.model = model
-        self.window_size = window_size
-        self.half_window = window_size // 2
-        self.trend = trend
-        self.skip = skip
-        self.initial_money = initial_money
-        self.ticker = ticker
-        self.save_dir = save_dir
-        self.es = Deep_Evolution_Strategy(
-            self.model.get_weights(),
-            self.get_reward,
-            self.POPULATION_SIZE,
-            self.SIGMA,
-            self.LEARNING_RATE,
+    Args:
+        predictor: Prediction model
+        lookback_period: Historical window size
+        price_data: Price sequence
+        step_size: Step interval
+        init_capital: Starting capital
+        stock_symbol: Ticker symbol
+        output_path: Directory for saving results
+    """
+    POPULATION_COUNT = 15
+    MUTATION_FACTOR = 0.1
+    ADAPTATION_RATE = 0.03
+
+    def __init__(self, predictor, lookback_period, price_data, step_size, init_capital, stock_symbol, output_path):
+        self.predictor = predictor
+        self.lookback_period = lookback_period
+        self.half_window = lookback_period // 2
+        self.price_data = price_data
+        self.step_size = step_size
+        self.init_capital = init_capital
+        self.stock_symbol = stock_symbol
+        self.output_path = output_path
+        self.optimizer = EvolutionaryOptimizer(
+            self.predictor.get_parameters(),
+            self.evaluate_performance,
+            self.POPULATION_COUNT,
+            self.MUTATION_FACTOR,
+            self.ADAPTATION_RATE,
         )
 
-    def act(self, sequence):
-        """Choose action based on current state"""
-        decision = self.model.predict(np.array(sequence))
+    def decide_action(self, state_sequence):
+        decision = self.predictor.forward(np.array(state_sequence))
         return np.argmax(decision[0])
 
-    def get_state(self, t):
-        """Get current state"""
-        window_size = self.window_size + 1
-        d = t - window_size + 1
-        block = self.trend[d: t + 1] if d >= 0 else -d * [self.trend[0]] + self.trend[0: t + 1]
-        res = []
-        for i in range(window_size - 1):
-            res.append(block[i + 1] - block[i])
-        return np.array([res])
+    def get_current_state(self, time_idx):
+        window = self.lookback_period + 1
+        start_idx = time_idx - window + 1
+        data_block = self.price_data[start_idx: time_idx + 1] if start_idx >= 0 else \
+            -start_idx * [self.price_data[0]] + self.price_data[0: time_idx + 1]
+        state = []
+        for i in range(window - 1):
+            state.append(data_block[i + 1] - data_block[i])
+        return np.array([state])
 
-    def get_reward(self, weights):
-        """Calculate reward value"""
-        initial_money = self.initial_money
-        starting_money = initial_money
-        self.model.weights = weights
-        state = self.get_state(0)
-        inventory = []
-        
-        for t in range(0, len(self.trend) - 1, self.skip):
-            action = self.act(state)
-            next_state = self.get_state(t + 1)
+    def evaluate_performance(self, model_parameters):
+        capital = self.init_capital
+        starting_capital = capital
+        self.predictor.set_parameters(model_parameters)
+        current_state = self.get_current_state(0)
+        holdings = []
 
-            if action == 1 and starting_money >= self.trend[t]:
-                inventory.append(self.trend[t])
-                starting_money -= self.trend[t]
+        for t in range(0, len(self.price_data) - 1, self.step_size):
+            action = self.decide_action(current_state)
+            next_state = self.get_current_state(t + 1)
 
-            elif action == 2 and len(inventory):
-                bought_price = inventory.pop(0)
-                starting_money += self.trend[t]
+            if action == 1 and starting_capital >= self.price_data[t]:
+                holdings.append(self.price_data[t])
+                starting_capital -= self.price_data[t]
 
-            state = next_state
-        return ((starting_money - initial_money) / initial_money) * 100
+            elif action == 2 and len(holdings):
+                purchase_price = holdings.pop(0)
+                starting_capital += self.price_data[t]
 
-    def fit(self, iterations, checkpoint):
-        """Train the agent"""
-        self.es.train(iterations, print_every=checkpoint)
+            current_state = next_state
+        return ((starting_capital - capital) / capital) * 100
 
-    def buy(self, save_dir):
-        """Execute trading strategy"""
-        initial_money = self.initial_money
-        state = self.get_state(0)
-        starting_money = initial_money
-        states_sell = []
-        states_buy = []
-        inventory = []
-        transaction_history = []
+    def train_strategy(self, training_rounds, checkpoint_interval):
+        self.optimizer.optimize(training_rounds, checkpoint_interval)
 
-        for t in range(0, len(self.trend) - 1, self.skip):
-            action = self.act(state)
-            next_state = self.get_state(t + 1)
+    def execute_trades(self, save_directory):
+        capital = self.init_capital
+        current_state = self.get_current_state(0)
+        starting_capital = capital
+        buy_points = []
+        sell_points = []
+        holdings = []
+        trade_history = []
 
-            if action == 1 and initial_money >= self.trend[t]:
-                inventory.append(self.trend[t])
-                initial_money -= self.trend[t]
-                states_buy.append(t)
-                transaction_history.append({
+        for t in range(0, len(self.price_data) - 1, self.step_size):
+            action = self.decide_action(current_state)
+            next_state = self.get_current_state(t + 1)
+
+            if action == 1 and capital >= self.price_data[t]:
+                holdings.append(self.price_data[t])
+                capital -= self.price_data[t]
+                buy_points.append(t)
+                trade_history.append({
                     'day': t,
                     'operate': 'buy',
-                    'price': self.trend[t],
+                    'price': self.price_data[t],
                     'investment': 0,
-                    'total_balance': initial_money
+                    'total_balance': capital
                 })
 
-            elif action == 2 and len(inventory):
-                bought_price = inventory.pop(0)
-                initial_money += self.trend[t]
-                states_sell.append(t)
+            elif action == 2 and len(holdings):
+                purchase_price = holdings.pop(0)
+                capital += self.price_data[t]
+                sell_points.append(t)
                 try:
-                    invest = ((self.trend[t] - bought_price) / bought_price) * 100
+                    roi = ((self.price_data[t] - purchase_price) / purchase_price) * 100
                 except:
-                    invest = 0
-                transaction_history.append({
+                    roi = 0
+                trade_history.append({
                     'day': t,
                     'operate': 'sell',
-                    'price': self.trend[t],
-                    'investment': invest,
-                    'total_balance': initial_money
+                    'price': self.price_data[t],
+                    'investment': roi,
+                    'total_balance': capital
                 })
 
-            state = next_state
+            current_state = next_state
 
-        # Save transaction history
-        df_transaction = pd.DataFrame(transaction_history)
-        os.makedirs(f'{save_dir}/transactions', exist_ok=True)
-        df_transaction.to_csv(f'{save_dir}/transactions/{self.ticker}_transactions.csv', index=False)
+        # Save transaction records
+        transaction_df = pd.DataFrame(trade_history)
+        os.makedirs(f'{save_directory}/transactions', exist_ok=True)
+        transaction_df.to_csv(f'{save_directory}/transactions/{self.stock_symbol}_transactions.csv', index=False)
 
-        invest = ((initial_money - starting_money) / starting_money) * 100
-        total_gains = initial_money - starting_money
-        return states_buy, states_sell, total_gains, invest
+        roi_percentage = ((capital - starting_capital) / starting_capital) * 100
+        net_profit = capital - starting_capital
+        return buy_points, sell_points, net_profit, roi_percentage
 
 
-def process_stock(ticker, save_dir, window_size = 30, initial_money = 10000, iterations=500):
+def process_stock(ticker, save_dir, window_size=30, initial_money=10000, iterations=500):
     try:
-        # Read prediction data
+        # Load prediction data
         df = pd.read_pickle(f'{save_dir}/predictions/{ticker}_predictions.pkl')
         print(f"\nProcessing {ticker}")
-        close = df.Prediction.values.tolist()
+        price_sequence = df.Prediction.values.tolist()
 
-        # Set parameters
+        # Configure parameters
         window_size = window_size
-        skip = 1
+        step_size = 1
         initial_money = initial_money
 
-        # Create model and agent
-        model = Model(input_size=window_size, layer_size=500, output_size=3)
-        agent = Agent(model=model, window_size=window_size, trend=close, 
-                     skip=skip, initial_money=initial_money, ticker=ticker, save_dir=save_dir)
-        
-        # Train agent
-        agent.fit(iterations=iterations, checkpoint=10)
+        # Initialize components
+        prediction_model = NeuralNetwork(input_dim=window_size, hidden_dim=500, output_dim=3)
+        trading_agent = TradingStrategy(
+            predictor=prediction_model,
+            lookback_period=window_size,
+            price_data=price_sequence,
+            step_size=step_size,
+            init_capital=initial_money,
+            stock_symbol=ticker,
+            output_path=save_dir
+        )
 
-        # Execute trading and get results
-        states_buy, states_sell, total_gains, invest = agent.buy(save_dir)
+        # Train the strategy
+        trading_agent.train_strategy(training_rounds=iterations, checkpoint_interval=10)
 
-        # Use visualization tool to draw trading chart
-        plot_trading_result(ticker, close, states_buy, states_sell, total_gains, invest, save_dir)
-        
+        # Execute trading and collect results
+        buy_signals, sell_signals, profit, roi = trading_agent.execute_trades(save_dir)
+
+        # Generate visualization
+        plot_trading_result(ticker, price_sequence, buy_signals, sell_signals, profit, roi, save_dir)
+
         return {
-            'total_gains': total_gains,
-            'investment_return': invest,
-            'trades_buy': len(states_buy),
-            'trades_sell': len(states_sell)
+            'total_gains': profit,
+            'investment_return': roi,
+            'trades_buy': len(buy_signals),
+            'trades_sell': len(sell_signals)
         }
-        
+
     except Exception as e:
         print(f"Error processing {ticker}: {e}")
         return None
 
 
 def main():
-    """Main function: Execute all stock trading strategy"""
-    # Stock list
-    tickers = [
-        'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA',       # Technology
-        'JPM', 'BAC', 'C', 'WFC', 'GS',                # Finance
-        'JNJ', 'PFE', 'MRK', 'ABBV', 'BMY',            # Pharmaceutical
-        'XOM', 'CVX', 'COP', 'SLB', 'BKR',             # Energy
-        'DIS', 'NFLX', 'CMCSA', 'NKE', 'SBUX',         # Consumer
-        'CAT', 'DE', 'MMM', 'GE', 'HON'                # Industrial
+    """Main execution function"""
+    stock_list = [
+        'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA',
+        'JPM', 'BAC', 'C', 'WFC', 'GS',
+        'JNJ', 'PFE', 'MRK', 'ABBV', 'BMY',
+        'XOM', 'CVX', 'COP', 'SLB', 'BKR',
+        'DIS', 'NFLX', 'CMCSA', 'NKE', 'SBUX',
+        'CAT', 'DE', 'MMM', 'GE', 'HON'
     ]
-    save_dir = 'results'
-    # Process each stock
-    for ticker in tickers:
-        process_stock(ticker, save_dir)
+    output_directory = 'results'
+    for symbol in stock_list:
+        process_stock(symbol, output_directory)
 
 
 if __name__ == "__main__":
