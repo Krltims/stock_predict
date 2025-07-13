@@ -48,8 +48,6 @@ def get_daily_kline(symbol, interval='1day', max_retries=3):
             print(f"获取 {symbol} 失败，将在 {sleep_time} 秒后重试 (重试 {retries}/{max_retries}): {str(e)}")
             time.sleep(sleep_time)
 
-    return {}
-
     if not data or 'values' not in data:
         print(f"获取 {symbol} 失败：{data.get('message', '无返回数据')}")
         return pd.DataFrame()
