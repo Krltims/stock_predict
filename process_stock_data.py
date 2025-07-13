@@ -7,12 +7,15 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-# 替换为你的 Twelve Data API Key
-API_KEY = 'b8b8061b3b3f4f9c97e930aa204dec3a'
+import os
+# 从环境变量获取API密钥
+API_KEY = os.getenv('TWELVE_DATA_API_KEY')
+if not API_KEY:
+    raise ValueError('请设置TWELVE_DATA_API_KEY环境变量')
 
-def get_daily_kline(symbol, interval='1day'):
+def get_daily_kline(symbol, interval='1day', max_retries=3):
     """
-    从 Twelve Data 获取指定股票的日K线数据
+    从 Twelve Data 获取指定股票的日K线数据，包含重试机制
     """
     url = "https://api.twelvedata.com/time_series"
     params = {
@@ -22,11 +25,33 @@ def get_daily_kline(symbol, interval='1day'):
         "apikey": API_KEY
     }
 
-    response = requests.get(url, params=params)
-    data = response.json()
+    retries = 0
+    while retries < max_retries:
+        try:
+            response = requests.get(url, params=params)
+            response.raise_for_status()  # 检查HTTP错误状态码
+            data = response.json()
+            
+            # 检查API返回的错误
+            if 'error' in data:
+                raise Exception(f"API Error: {data['error']}")
+            
+            return data
+        except Exception as e:
+            retries += 1
+            if retries >= max_retries:
+                print(f"获取 {symbol} 失败，已达到最大重试次数: {str(e)}")
+                return {}
+            
+            # 指数退避重试
+            sleep_time = 2 ** retries
+            print(f"获取 {symbol} 失败，将在 {sleep_time} 秒后重试 (重试 {retries}/{max_retries}): {str(e)}")
+            time.sleep(sleep_time)
 
-    if 'values' not in data:
-        print(f"获取 {symbol} 失败：{data.get('message')}")
+    return {}
+
+    if not data or 'values' not in data:
+        print(f"获取 {symbol} 失败：{data.get('message', '无返回数据')}")
         return pd.DataFrame()
 
     df = pd.DataFrame(data['values'])
@@ -82,8 +107,19 @@ def compute_indicators(df_stock, begin=None, finish=None):
     df_stock['Day'] = df_stock.index.day
 
     # 简单移动平均线（SMA）
+    df_stock['MA5'] = df_stock['Close'].shift(1).rolling(window=5).mean()
     df_stock['MA10'] = df_stock['Close'].shift(1).rolling(window=10).mean()
+    df_stock['MA20'] = df_stock['Close'].shift(1).rolling(window=20).mean()
     df_stock['MA50'] = df_stock['Close'].shift(1).rolling(window=50).mean()
+
+    # 前一日价格数据
+    df_stock['Close_yes'] = df_stock['Close'].shift(1)
+    df_stock['Open_yes'] = df_stock['Open'].shift(1)
+    df_stock['High_yes'] = df_stock['High'].shift(1)
+    df_stock['Low_yes'] = df_stock['Low'].shift(1)
+
+    # 相对表现指标
+    df_stock['Relative_Performance'] = df_stock['Close'] / df_stock['Close'].shift(1) - 1
 
     # RSI 相对强弱指标
     price_change = df_stock['Close'].diff()

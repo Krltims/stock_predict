@@ -538,12 +538,12 @@ def predict(ticker_name, stock_data, stock_features, save_dir, model_type='LSTM'
 
 if __name__ == "__main__":
     tickers = [
-        'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA',  # 科技
-        'JPM', 'BAC', 'C', 'WFC', 'GS',  # 金融
-        'JNJ', 'PFE', 'MRK', 'ABBV', 'BMY',  # 医药
-        'XOM', 'CVX', 'COP', 'SLB', 'BKR',  # 能源
-        'DIS', 'NFLX', 'CMCSA', 'NKE', 'SBUX',  # 消费
-        'CAT', 'DE', 'MMM', 'GE', 'HON'  # 工业
+        'MSFT', 'AAPL', 'UBER', 'IBM', 'NVDA',
+        'JPM', 'BAC', 'V', 'MS', 'MA',
+        'AMZN', 'MCD', 'NIKE', 'TSLA', 'SBUX',
+        'META', 'NFLX', 'TMUS', 'DIS', 'T',
+        'LLY', 'TMO', 'MRK', 'ABBV', 'GILD',
+        'WM', 'DE', 'BA', 'GE', 'HON',
     ]
 
     save_dir = 'results'  # 设置保存目录
