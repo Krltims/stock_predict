@@ -1,4 +1,5 @@
 import os
+import time
 import pandas as pd
 import numpy as np
 import requests
@@ -25,7 +26,7 @@ def get_daily_kline(symbol, interval='1day'):
     data = response.json()
 
     if 'values' not in data:
-        print(f" 获取 {symbol} 失败：{data.get('message')}")
+        print(f"获取 {symbol} 失败：{data.get('message')}")
         return pd.DataFrame()
 
     df = pd.DataFrame(data['values'])
@@ -150,29 +151,23 @@ def compute_indicators(df_stock, begin=None, finish=None):
 
     return df_stock
 
-
 def fetch_stock_history(stock_symbol, date_from, date_to):
-    """
-    使用 Twelve Data 获取并处理单个股票的数据
-    """
     df_raw = get_daily_kline(stock_symbol)
     if df_raw.empty:
         return pd.DataFrame()
 
     df_raw = df_raw[(df_raw.index >= date_from) & (df_raw.index <= date_to)]
     df_final = compute_indicators(df_raw, date_from, date_to)
-
     return df_final
-
 
 def process_all():
     symbols = [
-        'MSFT', #'AAPL', #'UBER', 'IBM', 'NVDA',  # 科技
-        #'JPM', 'BAC', 'V', 'MS', 'MA',  # 金融
-       # 'AMZN', 'MCD', 'NIKE', 'TSLA', 'SBUX',  # 消费
-       # 'META', 'NFLX', 'TMUS', 'DIS' 'T'  # 通信服务
-       # 'LLY', 'TMO', 'MRK', 'ABBV', 'GILD', # 医药
-       # 'WM', 'DE', 'BA', 'GE', 'HON',  # 工业
+        'MSFT', 'AAPL', 'UBER', 'IBM', 'NVDA',
+        'JPM', 'BAC', 'V', 'MS', 'MA',
+        'AMZN', 'MCD', 'NIKE', 'TSLA', 'SBUX',
+        'META', 'NFLX', 'TMUS', 'DIS', 'T',
+        'LLY', 'TMO', 'MRK', 'ABBV', 'GILD',
+        'WM', 'DE', 'BA', 'GE', 'HON',
     ]
     from_date = '2020-01-01'
     to_date = '2024-01-01'
@@ -180,15 +175,24 @@ def process_all():
     os.makedirs(folder_path, exist_ok=True)
 
     print("开始下载和处理股票数据...")
-    for code in symbols:
+    for i, code in enumerate(symbols):
         try:
             print(f"正在处理：{code}")
             df_result = fetch_stock_history(code, from_date, to_date)
-            file_full_path = f'{folder_path}/{code}.csv'
-            df_result.to_csv(file_full_path, index=True, index_label='Date')
-            print(f"{code} 处理完成")
+            if df_result.empty:
+                print(f"{code} 数据为空或处理失败")
+            else:
+                df_result.to_csv(f'{folder_path}/{code}.csv', index=True, index_label='Date')
+                print(f"{code} 处理完成")
         except Exception as err:
             print(f"处理 {code} 时出错: {str(err)}")
+
+        #  控流处理：避免超过 TwelveData 免费版每分钟 8 次限制
+        if (i + 1) % 7 == 0:  # 每处理 7 个，停 65 秒
+            print("达到 API 限制，休息 65 秒防止触发 rate limit...")
+            time.sleep(65)
+        else:
+            time.sleep(8)
 
 if __name__ == "__main__":
     process_all()
