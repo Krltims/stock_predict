@@ -122,7 +122,7 @@ def process_and_predict(temp_csv_path, model_type,
         return [None] * 9
 
     try:
-        ticker = os.path.basename(temp_csv_path).split('_')[0]
+        ticker = os.path.basename(temp_csv_path).split('.')[0]
         stock_data = pd.read_csv(temp_csv_path)
         stock_features = format_feature(stock_data)
 
