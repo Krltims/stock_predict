@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 
-def plot_stock_prediction(ticker, test_indices, actual_prices, predicted_prices, metrics, save_dir):
+def plot_stock_prediction(ticker, test_indices, actual_prices, predicted_prices, metrics, save_dir, model_type):
     """
     绘制股票预测结果对比图
     
@@ -13,34 +13,40 @@ def plot_stock_prediction(ticker, test_indices, actual_prices, predicted_prices,
         predicted_prices: 预测价格
         metrics: 包含rmse、mae和accuracy的字典
         save_dir: 图片保存的根目录
+        model_type: 模型类型 ('LSTM' 或 'GRU')
     返回:
         str: 保存的图片路径
     """
-    plt.figure(figsize=(15, 7))
-    plt.plot(test_indices, actual_prices, label='Actual Price', color='blue', linewidth=2, alpha=0.7)
-    plt.plot(test_indices, predicted_prices, label='LSTM Prediction', color='red', linewidth=2, linestyle='--', alpha=0.7)
+    try:
+        plt.figure(figsize=(15, 7))
+        plt.plot(test_indices, actual_prices, label='Actual Price', color='blue', linewidth=2, alpha=0.7)
+        plt.plot(test_indices, predicted_prices, label=f'{model_type} Prediction', color='red', linewidth=2, linestyle='--', alpha=0.7)
     
-    plt.title(f'{ticker} Stock Price Prediction\nRMSE: {metrics["rmse"]:.2f}, MAE: {metrics["mae"]:.2f}')
-    plt.xlabel('Date')
-    plt.ylabel('Price')
-    plt.xticks(rotation=45)
-    plt.grid(True, alpha=0.3)
-    plt.legend()
+        plt.title(f'{ticker} Stock Price Prediction ({model_type})\nRMSE: {metrics["rmse"]:.2f}, MAE: {metrics["mae"]:.2f}')
+        plt.xlabel('Date')
+        plt.ylabel('Price')
+        plt.xticks(rotation=45)
+        plt.grid(True, alpha=0.3)
+        plt.legend()
     
-    plt.text(0.02, 0.95, f'Prediction Accuracy: {metrics["accuracy"]*100:.2f}%', 
-             transform=plt.gca().transAxes, bbox=dict(facecolor='white', alpha=0.8))
+        plt.text(0.02, 0.95, f'Prediction Accuracy: {metrics["accuracy"]*100:.2f}%',
+                 transform=plt.gca().transAxes, bbox=dict(facecolor='white', alpha=0.8))
     
-    plt.tight_layout()
+        plt.tight_layout()
     
-    prediction_dir = os.path.join(save_dir, 'pic/predictions')
-    os.makedirs(prediction_dir, exist_ok=True)
-    save_path = os.path.join(prediction_dir, f'{ticker}_prediction.png')
-    plt.savefig(save_path)
-    plt.close()
+        prediction_dir = os.path.join(save_dir, 'pic/predictions')
+        os.makedirs(prediction_dir, exist_ok=True)
+        save_path = os.path.join(prediction_dir, f'{ticker}_{model_type}_prediction.png')
+        plt.savefig(save_path)
+        plt.close()
     
-    return save_path
+        return save_path
+    except Exception as e:
+        print(f"Error plotting stock prediction for {ticker}: {e}")
+        plt.close()
+        return None
 
-def plot_training_loss(ticker, train_losses, val_losses, save_dir):
+def plot_training_loss(ticker, train_losses, val_losses, save_dir, model_type=None):
     """
     绘制训练和验证损失曲线
     
@@ -49,27 +55,39 @@ def plot_training_loss(ticker, train_losses, val_losses, save_dir):
         train_losses: 训练损失列表
         val_losses: 验证损失列表
         save_dir: 图片保存的根目录
+        model_type: 模型类型 ('LSTM' 或 'GRU')，可选
     返回:
         str: 保存的图片路径
     """
-    plt.figure(figsize=(10, 5))
-    plt.plot(train_losses, label='Train Loss')
-    plt.plot(val_losses, label='Validation Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.title(f'Training and Validation Loss for {ticker}')
-    plt.legend()
-    plt.grid(True)
+    try:
+        plt.figure(figsize=(10, 5))
+        plt.plot(train_losses, label='Train Loss')
+        plt.plot(val_losses, label='Validation Loss')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        title = f'Training and Validation Loss for {ticker}'
+        if model_type:
+            title += f' ({model_type})'
+        plt.title(title)
+        plt.legend()
+        plt.grid(True)
     
-    loss_dir = os.path.join(save_dir, 'pic/loss')
-    os.makedirs(loss_dir, exist_ok=True)
-    save_path = os.path.join(loss_dir, f'{ticker}_loss.png')
-    plt.savefig(save_path)
-    plt.close()
+        loss_dir = os.path.join(save_dir, 'pic/loss')
+        os.makedirs(loss_dir, exist_ok=True)
+        filename = f'{ticker}_loss.png'
+        if model_type:
+            filename = f'{ticker}_{model_type}_loss.png'
+        save_path = os.path.join(loss_dir, filename)
+        plt.savefig(save_path)
+        plt.close()
     
-    return save_path
+        return save_path
+    except Exception as e:
+        print(f"Error plotting training loss for {ticker}: {e}")
+        plt.close()
+        return None
 
-def plot_cumulative_earnings(ticker, test_indices, actual_percentages, predict_percentages, save_dir):
+def plot_cumulative_earnings(ticker, test_indices, actual_percentages, predict_percentages, save_dir, model_type):
     """
     绘制累积收益率曲线
     
@@ -79,34 +97,40 @@ def plot_cumulative_earnings(ticker, test_indices, actual_percentages, predict_p
         actual_percentages: 实际收益率列表
         predict_percentages: 预测收益率列表
         save_dir: 图片保存的根目录
+        model_type: 模型类型 ('LSTM' 或 'GRU')
     返回:
         str: 保存的图片路径
     """
-    cumulative_naive_percentage = np.cumsum(actual_percentages)
-    cumulative_lstm_percentage = np.cumsum(
-        [a if p > 0 else 0 for p, a in zip(predict_percentages, actual_percentages)]
-    )
+    try:
+        cumulative_naive_percentage = np.cumsum(actual_percentages)
+        cumulative_model_percentage = np.cumsum(
+            [a if p > 0 else 0 for p, a in zip(predict_percentages, actual_percentages)]
+        )
 
-    plt.figure(figsize=(10, 6))
-    plt.plot(test_indices, cumulative_naive_percentage, marker='o', markersize=3, 
-             linestyle='-', color='blue', label='Naive Strategy')
-    plt.plot(test_indices, cumulative_lstm_percentage, marker='o', markersize=3, 
-             linestyle='-', color='orange', label='LSTM Strategy')
-    plt.title(f'Cumulative Earnings Percentages for {ticker}')
-    plt.xlabel('Date')
-    plt.ylabel('Percentage (%)')
-    plt.xticks(rotation=45)
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
+        plt.figure(figsize=(10, 6))
+        plt.plot(test_indices, cumulative_naive_percentage, marker='o', markersize=3,
+                 linestyle='-', color='blue', label='Naive Strategy')
+        plt.plot(test_indices, cumulative_model_percentage, marker='o', markersize=3,
+                 linestyle='-', color='orange', label=f'{model_type} Strategy')
+        plt.title(f'Cumulative Earnings Percentages for {ticker} ({model_type})')
+        plt.xlabel('Date')
+        plt.ylabel('Percentage (%)')
+        plt.xticks(rotation=45)
+        plt.grid(True)
+        plt.legend()
+        plt.tight_layout()
     
-    earnings_dir = os.path.join(save_dir, 'pic/earnings')
-    os.makedirs(earnings_dir, exist_ok=True)
-    save_path = os.path.join(earnings_dir, f'{ticker}_cumulative.png')
-    plt.savefig(save_path)
-    plt.close()
+        earnings_dir = os.path.join(save_dir, 'pic/earnings')
+        os.makedirs(earnings_dir, exist_ok=True)
+        save_path = os.path.join(earnings_dir, f'{ticker}_{model_type}_cumulative.png')
+        plt.savefig(save_path)
+        plt.close()
     
-    return save_path
+        return save_path
+    except Exception as e:
+        print(f"Error plotting cumulative earnings for {ticker}: {e}")
+        plt.close()
+        return None
 
 def plot_accuracy_comparison(prediction_metrics, save_dir):
     """
@@ -118,23 +142,32 @@ def plot_accuracy_comparison(prediction_metrics, save_dir):
     返回:
         str: 保存的图片路径
     """
-    plt.figure(figsize=(15, 6))
-    accuracies = [metrics['accuracy'] * 100 for metrics in prediction_metrics.values()]
-    plt.bar(prediction_metrics.keys(), accuracies)
-    plt.title('Prediction Accuracy Across Stocks')
-    plt.xlabel('Stock')
-    plt.ylabel('Accuracy (%)')
-    plt.xticks(rotation=45)
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
+    try:
+        if not prediction_metrics:
+            print("No prediction metrics to plot")
+            return None
     
-    prediction_dir = os.path.join(save_dir, 'pic')
-    os.makedirs(prediction_dir, exist_ok=True)
-    save_path = os.path.join(prediction_dir, 'accuracy_comparison.png')
-    plt.savefig(save_path)
-    plt.close()
+        plt.figure(figsize=(15, 6))
+        accuracies = [metrics['accuracy'] * 100 for metrics in prediction_metrics.values()]
+        plt.bar(prediction_metrics.keys(), accuracies)
+        plt.title('Prediction Accuracy Across Stocks')
+        plt.xlabel('Stock')
+        plt.ylabel('Accuracy (%)')
+        plt.xticks(rotation=45)
+        plt.grid(True, alpha=0.3)
+        plt.tight_layout()
     
-    return save_path
+        prediction_dir = os.path.join(save_dir, 'pic')
+        os.makedirs(prediction_dir, exist_ok=True)
+        save_path = os.path.join(prediction_dir, 'accuracy_comparison.png')
+        plt.savefig(save_path)
+        plt.close()
+
+        return save_path
+    except Exception as e:
+        print(f"Error plotting accuracy comparison: {e}")
+        plt.close()
+        return None
 
 def plot_trading_result(ticker, close_prices, states_buy, states_sell, total_gains, invest, save_dir):
     """
@@ -151,20 +184,25 @@ def plot_trading_result(ticker, close_prices, states_buy, states_sell, total_gai
     返回:
         str: 保存的图片路径
     """
-    plt.figure(figsize=(15, 5))
-    plt.plot(close_prices, color='r', lw=2.)
-    plt.plot(close_prices, '^', markersize=10, color='m', label='buying signal', markevery=states_buy)
-    plt.plot(close_prices, 'v', markersize=10, color='k', label='selling signal', markevery=states_sell)
-    plt.title(f'{ticker} total gains ${total_gains:.2f}, total investment {invest:.2f}%')
-    plt.legend()
+    try:
+        plt.figure(figsize=(15, 5))
+        plt.plot(close_prices, color='r', lw=2.)
+        plt.plot(close_prices, '^', markersize=10, color='m', label='buying signal', markevery=states_buy)
+        plt.plot(close_prices, 'v', markersize=10, color='k', label='selling signal', markevery=states_sell)
+        plt.title(f'{ticker} total gains ${total_gains:.2f}, total investment {invest:.2f}%')
+        plt.legend()
     
-    # 创建保存目录
-    trades_dir = os.path.join(save_dir, 'pic/trades')
-    os.makedirs(trades_dir, exist_ok=True)
+        # 创建保存目录
+        trades_dir = os.path.join(save_dir, 'pic/trades')
+        os.makedirs(trades_dir, exist_ok=True)
     
-    # 保存图片
-    save_path = os.path.join(trades_dir, f'{ticker}_trades.png')
-    plt.savefig(save_path)
-    plt.close()
+        # 保存图片
+        save_path = os.path.join(trades_dir, f'{ticker}_trades.png')
+        plt.savefig(save_path)
+        plt.close()
     
-    return save_path
+        return save_path
+    except Exception as e:
+        print(f"Error plotting trading result for {ticker}: {e}")
+        plt.close()
+        return None
