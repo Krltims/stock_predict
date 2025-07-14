@@ -8,9 +8,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # 替换为你的 Twelve Data API Key
-API_KEY = os.getenv('TWELVE_DATA_API_KEY')
-if not API_KEY:
-    raise ValueError('请设置TWELVE_DATA_API_KEY环境变量')
+API_KEY = 'b8b8061b3b3f4f9c97e930aa204dec3a'
 
 def get_daily_kline(symbol, interval='1day'):
     """
@@ -195,6 +193,25 @@ def process_all():
             time.sleep(65)
         else:
             time.sleep(8)
-
+def get_stock_data(ticker, start_date, end_date):
+    """
+    获取股票数据的包装函数，调用 fetch_stock_history
+    """
+    return fetch_stock_history(ticker, start_date, end_date)
+def clean_csv_files(file_path):
+    """
+    清理CSV文件格式
+    """
+    try:
+        # 读取CSV文件
+        df = pd.read_csv(file_path)
+        # 确保Date列是索引
+        if 'Date' in df.columns:
+            df.set_index('Date', inplace=True)
+        # 重新保存
+        df.to_csv(file_path, index=True)
+        print(f"文件 {file_path} 清理完成")
+    except Exception as e:
+        print(f"清理文件 {file_path} 失败: {e}")
 if __name__ == "__main__":
     process_all()
