@@ -158,9 +158,9 @@ def process_and_predict(temp_csv_path, model_type,
             iterations=agent_iterations
         )
 
-        prediction_plot = Image.open(f"{save_dir}/pic/predictions/{ticker}_prediction.png")
-        loss_plot = Image.open(f"{save_dir}/pic/loss/{ticker}_loss.png")
-        earnings_plot = Image.open(f"{save_dir}/pic/earnings/{ticker}_cumulative.png")
+        prediction_plot = Image.open(f"{save_dir}/pic/predictions/{ticker}_{model_type}_prediction.png")
+        loss_plot = Image.open(f"{save_dir}/pic/loss/{ticker}_{model_type}_loss.png")
+        earnings_plot = Image.open(f"{save_dir}/pic/earnings/{ticker}_{model_type}_cumulative.png")
         trades_plot = Image.open(f"{save_dir}/pic/trades/{ticker}_trades.png")
         transactions_df = pd.read_csv(f"{save_dir}/transactions/{ticker}_transactions.csv")
 
