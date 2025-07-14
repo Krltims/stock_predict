@@ -212,7 +212,7 @@ def train_and_predict_gru(ticker, data, X, y, save_dir, n_steps=30, num_epochs=5
             scheduler.step()
 
     # 使用可视化工具绘制损失曲线
-    plot_training_loss(ticker, train_losses, val_losses, save_dir)
+    plot_training_loss(ticker, train_losses, val_losses, save_dir, 'GRU')
 
     # 预测
     model.eval()
@@ -242,7 +242,7 @@ def train_and_predict_gru(ticker, data, X, y, save_dir, n_steps=30, num_epochs=5
                 actual_percentages.append(y.iloc[original_idx] * 100)
 
     # 使用可视化工具绘制累积收益率曲线
-    plot_cumulative_earnings(ticker, test_indices, actual_percentages, predict_percentages, save_dir)
+    plot_cumulative_earnings(ticker, test_indices, actual_percentages, predict_percentages, save_dir, 'GRU')
 
     predict_result = {str(date): pred / 100 for date, pred in zip(test_indices, predict_percentages)}
     return predict_result, test_indices, predictions, actual_percentages
@@ -323,7 +323,7 @@ def prepare_time_series_data(X_scaled, y_scaled, n_steps, train_ratio=0.8):
     }
 
 
-def visualize_predictions(ticker, data, predict_result, test_indices, predictions, actual_percentages, save_dir):
+def visualize_predictions(ticker, data, predict_result, test_indices, predictions, actual_percentages, save_dir, model_type):
     actual_prices = data['Close'].loc[test_indices].values
     predicted_prices = np.array(predictions)
 
@@ -333,7 +333,7 @@ def visualize_predictions(ticker, data, predict_result, test_indices, prediction
     accuracy = 1 - np.mean(np.abs(predicted_prices - actual_prices) / actual_prices)
 
     metrics = {'rmse': rmse, 'mae': mae, 'accuracy': accuracy}
-    plot_stock_prediction(ticker, test_indices, actual_prices, predicted_prices, metrics, save_dir)
+    plot_stock_prediction(ticker, test_indices, actual_prices, predicted_prices, metrics, save_dir, model_type)
 
     return metrics
 
@@ -428,7 +428,7 @@ def train_and_predict_lstm(ticker, data, X, y, save_dir, n_steps=30, num_epochs=
             scheduler.step()
 
     # 使用可视化工具绘制损失曲线
-    plot_training_loss(ticker, train_losses, val_losses, save_dir)
+    plot_training_loss(ticker, train_losses, val_losses, save_dir, 'LSTM')
 
     # 预测
     model.eval()
@@ -458,7 +458,7 @@ def train_and_predict_lstm(ticker, data, X, y, save_dir, n_steps=30, num_epochs=
                 actual_percentages.append(y.iloc[original_idx] * 100)
 
     # 使用可视化工具绘制累积收益率曲线
-    plot_cumulative_earnings(ticker, test_indices, actual_percentages, predict_percentages, save_dir)
+    plot_cumulative_earnings(ticker, test_indices, actual_percentages, predict_percentages, save_dir, 'LSTM')
 
     predict_result = {str(date): pred / 100 for date, pred in zip(test_indices, predict_percentages)}
     return predict_result, test_indices, predictions, actual_percentages
@@ -501,7 +501,7 @@ def predict(ticker_name, stock_data, stock_features, save_dir, model_type='LSTM'
     all_predictions[ticker_name] = predict_result
 
     metrics = visualize_predictions(ticker_name, data, predict_result, test_indices, predictions, actual_percentages,
-                                    save_dir)
+                                    save_dir, model_type)
     prediction_metrics[ticker_name] = metrics
 
     save_predictions_with_indices(ticker_name, test_indices, predictions, save_dir)
