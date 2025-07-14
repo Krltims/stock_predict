@@ -1,0 +1,5 @@
+Average Accuracy: 99.13991428215225
+Best Stock: AAPL
+Worst Stock: AAPL
+Average RMSE: 2.0536685684328377
+Average MAE: 1.567632192684909

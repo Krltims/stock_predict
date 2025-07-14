@@ -63,7 +63,6 @@ def compute_indicators(df_stock, begin=None, finish=None):
     if not isinstance(df_stock.index, pd.DatetimeIndex):
         df_stock.index = pd.to_datetime(df_stock.index)
 
-    # 如果数据为空或缺少收盘价列则返回空
     if df_stock.empty or 'Close' not in df_stock.columns:
         print("数据为空或缺少 Close 列，跳过该股票。")
         return pd.DataFrame()
@@ -72,9 +71,8 @@ def compute_indicators(df_stock, begin=None, finish=None):
     change = df_stock['Close'].pct_change()
     df_stock.loc[change.abs() > 0.3, ['Open', 'High', 'Low', 'Close', 'Volume']] = np.nan
 
-    # 用前向和后向填充法处理缺失值
+    # 只使用前向填充法处理缺失值，避免使用未来数据
     df_stock.fillna(method='ffill', inplace=True)
-    df_stock.fillna(method='bfill', inplace=True)
 
     # 添加时间特征
     df_stock['Year'] = df_stock.index.year
@@ -82,7 +80,9 @@ def compute_indicators(df_stock, begin=None, finish=None):
     df_stock['Day'] = df_stock.index.day
 
     # 简单移动平均线（SMA）
+    df_stock['MA5'] = df_stock['Close'].shift(1).rolling(window=5).mean()  # 添加MA5
     df_stock['MA10'] = df_stock['Close'].shift(1).rolling(window=10).mean()
+    df_stock['MA20'] = df_stock['Close'].shift(1).rolling(window=20).mean()  # 添加MA20
     df_stock['MA50'] = df_stock['Close'].shift(1).rolling(window=50).mean()
 
     # RSI 相对强弱指标
@@ -92,22 +92,22 @@ def compute_indicators(df_stock, begin=None, finish=None):
     mean_rise = rise.rolling(window=14).mean()
     mean_drop = drop.rolling(window=14).mean()
     rs_value = mean_rise / mean_drop
-    df_stock['RSI'] = 100 - (100 / (1 + rs_value))
+    df_stock['RSI'] = (100 - (100 / (1 + rs_value))).shift(1)
 
-    # MACD 指标：快线 - 慢线
+      # MACD 指标：快线 - 慢线
     ema_short = df_stock['Close'].ewm(span=12, adjust=False).mean()
     ema_long = df_stock['Close'].ewm(span=26, adjust=False).mean()
-    df_stock['MACD'] = ema_short - ema_long
+    df_stock['MACD'] = (ema_short - ema_long).shift(1)
 
     # VWAP 成交量加权平均价
-    df_stock['VWAP'] = (df_stock['Close'] * df_stock['Volume']).cumsum() / df_stock['Volume'].cumsum()
+    df_stock['VWAP'] = ((df_stock['Close'] * df_stock['Volume']).cumsum() / df_stock['Volume'].cumsum()).shift(1)
 
     # 布林带指标
     window_size = 20
-    df_stock['SMA'] = df_stock['Close'].rolling(window=window_size).mean()
-    df_stock['Std_dev'] = df_stock['Close'].rolling(window=window_size).std()
-    df_stock['Upper_band'] = df_stock['SMA'] + 2 * df_stock['Std_dev']  # 上轨
-    df_stock['Lower_band'] = df_stock['SMA'] - 2 * df_stock['Std_dev']  # 下轨
+    sma = df_stock['Close'].rolling(window=window_size).mean()
+    std_dev = df_stock['Close'].rolling(window=window_size).std()
+    df_stock['Upper_band'] = (sma + 2 * std_dev).shift(1)  # 上轨
+    df_stock['Lower_band'] = (sma - 2 * std_dev).shift(1)  # 下轨
 
     # OBV 能量潮指标（On-Balance Volume）
     obv = [0]
@@ -118,9 +118,9 @@ def compute_indicators(df_stock, begin=None, finish=None):
             obv.append(obv[-1] - df_stock['Volume'].iloc[i])
         else:
             obv.append(obv[-1])
-    df_stock['OBV'] = obv
+    df_stock['OBV'] = pd.Series(obv, index=df_stock.index).shift(1)
 
-    # ADX 平均趋向指标 +DI, -DI 和 ATR（真实波幅范围）
+     # ADX 平均趋向指标 +DI, -DI 和 ATR（真实波幅范围）
     high = df_stock['High']
     low = df_stock['Low']
     close = df_stock['Close']
@@ -134,15 +134,24 @@ def compute_indicators(df_stock, begin=None, finish=None):
     atr = tr.rolling(window=14).mean()
 
     # 正向/负向趋向指标（+DI 和 -DI）
-    df_stock['+DI'] = 100 * (plus_dm.rolling(window=14).mean() / atr)
-    df_stock['-DI'] = 100 * (minus_dm.rolling(window=14).mean() / atr)
+    plus_di_intermediate = 100 * (plus_dm.rolling(window=14).mean() / atr)
+    minus_di_intermediate = 100 * (minus_dm.rolling(window=14).mean() / atr)
+    df_stock['+DI'] = plus_di_intermediate.shift(1)
+    df_stock['-DI'] = minus_di_intermediate.shift(1)
 
     # ADX 趋势强度指标
-    df_stock['ADX'] = (abs(df_stock['+DI'] - df_stock['-DI']) / (df_stock['+DI'] + df_stock['-DI'])).rolling(window=14).mean() * 100
+    adx_intermediate = (abs(plus_di_intermediate - minus_di_intermediate) / (plus_di_intermediate + minus_di_intermediate)).rolling(window=14).mean() * 100
+    df_stock['ADX'] = adx_intermediate.shift(1)
 
     # ATR 平均真实波幅
-    df_stock['ATR'] = atr
+    df_stock['ATR'] = atr.shift(1)
 
+    # 添加前一日价格数据（重命名为*_yes格式以匹配模型需求）
+    df_stock['Open_yes'] = df_stock['Open'].shift(1)
+    df_stock['High_yes'] = df_stock['High'].shift(1)
+    df_stock['Low_yes'] = df_stock['Low'].shift(1)
+    df_stock['Close_yes'] = df_stock['Close'].shift(1)
+    df_stock['Volume_yes'] = df_stock['Volume'].shift(1)
     # 添加前一日收盘价
     df_stock['Prev_Close'] = df_stock['Close'].shift(1)
 

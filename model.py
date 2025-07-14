@@ -123,41 +123,38 @@ class GRUModel(nn.Module):
         return out
 
 
-def train_and_predict_gru(ticker, data, X, y, save_dir, n_steps=30, num_epochs=500, batch_size=64, learning_rate=0.001):
+def train_and_predict_gru(ticker, data, X, y, save_dir, n_steps=30, num_epochs=100, batch_size=64, learning_rate=0.001):
     # Reference: Chen, K., Zhou, Y., & Dai, F. (2015, October). A LSTM-based method for stock returns prediction: A case study of China stock market. In 2015 IEEE international conference on big data (big data) (pp. 2823-2824). IEEE.
 
-    # 首先按时间顺序划分数据，避免数据泄露
+    # 1. 按时间顺序划分数据，创建严格隔离的训练集和验证集
     split_idx = int(len(X) * 0.8)
     X_train_raw = X.iloc[:split_idx]
-    X_test_raw = X.iloc[split_idx:]
+    X_val_raw = X.iloc[split_idx:]
     y_train_raw = y.iloc[:split_idx]
-    y_test_raw = y.iloc[split_idx:]
+    y_val_raw = y.iloc[split_idx:]
 
-    # 数据归一化 - 只在训练集上拟合标准化器
+    # 2. 数据归一化 - 只在训练集上拟合标准化器
     scaler_y = MinMaxScaler()
     scaler_X = MinMaxScaler()
 
-    # 只在训练集上拟合
     scaler_y.fit(y_train_raw.values.reshape(-1, 1))
     scaler_X.fit(X_train_raw)
 
-    # 分别转换训练集和测试集
-    y_train_scaled = scaler_y.transform(y_train_raw.values.reshape(-1, 1)).flatten()
-    y_test_scaled = scaler_y.transform(y_test_raw.values.reshape(-1, 1)).flatten()
+    y_train_scaled = scaler_y.transform(y_train_raw.values.reshape(-1, 1))
+    y_val_scaled = scaler_y.transform(y_val_raw.values.reshape(-1, 1))
     X_train_scaled = scaler_X.transform(X_train_raw)
-    X_test_scaled = scaler_X.transform(X_test_raw)
+    X_val_scaled = scaler_X.transform(X_val_raw)
 
-    # 重新组合用于时间序列处理
-    X_scaled = np.vstack([X_train_scaled, X_test_scaled])
-    y_scaled = np.concatenate([y_train_scaled, y_test_scaled])
+    # 3. 为训练集和验证集分别创建时间序列，避免数据泄露
+    def create_sequences(features, target, n_steps):
+        X_seq, y_seq = [], []
+        for i in range(len(features) - n_steps):
+            X_seq.append(features[i:(i + n_steps)])
+            y_seq.append(target[i + n_steps])
+        return np.array(X_seq), np.array(y_seq)
 
-    # 使用新的时间序列数据准备函数，避免数据泄露
-    data_splits = prepare_time_series_data(X_scaled, y_scaled, n_steps, train_ratio=0.8)
-    X_train = data_splits['X_train']
-    y_train = data_splits['y_train']
-    X_val = data_splits['X_val']
-    y_val = data_splits['y_val']
-    split_index = data_splits['split_idx']
+    X_train, y_train = create_sequences(X_train_scaled, y_train_scaled, n_steps)
+    X_val, y_val = create_sequences(X_val_scaled, y_val_scaled, n_steps)
 
     # PyTorch数据准备
     X_train_tensor = torch.tensor(X_train, dtype=torch.float32).to(device)
@@ -227,14 +224,13 @@ def train_and_predict_gru(ticker, data, X, y, save_dir, n_steps=30, num_epochs=5
             x_input_tensor = torch.tensor(x_input.reshape(1, n_steps, X_train.shape[2]),
                                           dtype=torch.float32).to(device)
             y_pred = model(x_input_tensor)
-            y_pred_scaled = y_pred.cpu().numpy().flatten()[0]
-
+            
             # 反标准化预测值
-            y_pred_value = scaler_y.inverse_transform([[y_pred_scaled]])[0][0]
+            y_pred_value = scaler_y.inverse_transform(y_pred.cpu().numpy())[0][0]
 
             # 计算对应的原始数据索引
+            # 验证集的第一个预测对应于原始X中的 split_idx + n_steps 的位置
             original_idx = split_idx + n_steps + i
-            # 修复索引越界问题：确保original_idx不超出data和y的范围
             if original_idx < len(data) and original_idx < len(y):
                 predictions.append((1 + y_pred_value) * data['Close'].iloc[original_idx - 1])
                 test_indices.append(data.index[original_idx])
@@ -261,8 +257,8 @@ def get_stock_data(ticker, data_dir='data'):
 
 def format_feature(data):
     features = [
-        'Volume', 'Year', 'Month', 'Day', 'MA5', 'MA10', 'MA20', 'RSI', 'MACD',
-        'VWAP', 'SMA', 'Std_dev', 'Upper_band', 'Lower_band', 'Relative_Performance', 'ATR',
+        'Volume_yes', 'Year', 'Month', 'Day', 'MA5', 'MA10', 'MA20', 'RSI', 'MACD',
+        'VWAP', 'Upper_band', 'Lower_band', 'ATR',
         'Close_yes', 'Open_yes', 'High_yes', 'Low_yes'
     ]
     X = data[features].iloc[1:]
@@ -280,49 +276,6 @@ def format_feature(data):
     return X, y
 
 
-def prepare_data(data, n_steps):
-    X, y = [], []
-    for i in range(len(data) - n_steps):
-        X.append(data[i:i + n_steps])
-        y.append(data[i + n_steps])
-    return np.array(X), np.array(y)
-
-
-def prepare_time_series_data(X_scaled, y_scaled, n_steps, train_ratio=0.8):
-    """
-    正确的时间序列数据划分函数，避免数据泄露
-
-    Parameters:
-        X_scaled: 标准化后的特征数据
-        y_scaled: 标准化后的目标数据
-        n_steps: 时间窗口大小
-        train_ratio: 训练集比例
-
-    Returns:
-        dict: 包含训练集和验证集的字典
-    """
-    X_sequences, y_sequences = [], []
-
-    # 正确创建时间序列序列
-    for i in range(n_steps, len(X_scaled)):
-        X_sequences.append(X_scaled[i - n_steps:i])
-        y_sequences.append(y_scaled[i])
-
-    X_sequences = np.array(X_sequences)
-    y_sequences = np.array(y_sequences)
-
-    # 按时间顺序划分训练集和验证集（避免数据泄露）
-    split_idx = int(len(X_sequences) * train_ratio)
-
-    return {
-        'X_train': X_sequences[:split_idx],
-        'y_train': y_sequences[:split_idx],
-        'X_val': X_sequences[split_idx:],
-        'y_val': y_sequences[split_idx:],
-        'split_idx': split_idx
-    }
-
-
 def visualize_predictions(ticker, data, predict_result, test_indices, predictions, actual_percentages, save_dir, model_type):
     actual_prices = data['Close'].loc[test_indices].values
     predicted_prices = np.array(predictions)
@@ -338,42 +291,39 @@ def visualize_predictions(ticker, data, predict_result, test_indices, prediction
     return metrics
 
 
-def train_and_predict_lstm(ticker, data, X, y, save_dir, n_steps=30, num_epochs=500, batch_size=64,
+def train_and_predict_lstm(ticker, data, X, y, save_dir, n_steps=30, num_epochs=100, batch_size=64,
                            learning_rate=0.001):
     # Reference: Chen, K., Zhou, Y., & Dai, F. (2015, October). A LSTM-based method for stock returns prediction: A case study of China stock market. In 2015 IEEE international conference on big data (big data) (pp. 2823-2824). IEEE.
 
-    # 首先按时间顺序划分数据，避免数据泄露
+    # 1. 按时间顺序划分数据，创建严格隔离的训练集和验证集
     split_idx = int(len(X) * 0.8)
     X_train_raw = X.iloc[:split_idx]
-    X_test_raw = X.iloc[split_idx:]
+    X_val_raw = X.iloc[split_idx:]
     y_train_raw = y.iloc[:split_idx]
-    y_test_raw = y.iloc[split_idx:]
+    y_val_raw = y.iloc[split_idx:]
 
-    # 数据归一化 - 只在训练集上拟合标准化器
+    # 2. 数据归一化 - 只在训练集上拟合标准化器
     scaler_y = MinMaxScaler()
     scaler_X = MinMaxScaler()
 
-    # 只在训练集上拟合
     scaler_y.fit(y_train_raw.values.reshape(-1, 1))
     scaler_X.fit(X_train_raw)
 
-    # 分别转换训练集和测试集
-    y_train_scaled = scaler_y.transform(y_train_raw.values.reshape(-1, 1)).flatten()
-    y_test_scaled = scaler_y.transform(y_test_raw.values.reshape(-1, 1)).flatten()
+    y_train_scaled = scaler_y.transform(y_train_raw.values.reshape(-1, 1))
+    y_val_scaled = scaler_y.transform(y_val_raw.values.reshape(-1, 1))
     X_train_scaled = scaler_X.transform(X_train_raw)
-    X_test_scaled = scaler_X.transform(X_test_raw)
+    X_val_scaled = scaler_X.transform(X_val_raw)
 
-    # 重新组合用于时间序列处理
-    X_scaled = np.vstack([X_train_scaled, X_test_scaled])
-    y_scaled = np.concatenate([y_train_scaled, y_test_scaled])
+    # 3. 为训练集和验证集分别创建时间序列，避免数据泄露
+    def create_sequences(features, target, n_steps):
+        X_seq, y_seq = [], []
+        for i in range(len(features) - n_steps):
+            X_seq.append(features[i:(i + n_steps)])
+            y_seq.append(target[i + n_steps])
+        return np.array(X_seq), np.array(y_seq)
 
-    # 使用新的时间序列数据准备函数，避免数据泄露
-    data_splits = prepare_time_series_data(X_scaled, y_scaled, n_steps, train_ratio=0.8)
-    X_train = data_splits['X_train']
-    y_train = data_splits['y_train']
-    X_val = data_splits['X_val']
-    y_val = data_splits['y_val']
-    split_index = data_splits['split_idx']
+    X_train, y_train = create_sequences(X_train_scaled, y_train_scaled, n_steps)
+    X_val, y_val = create_sequences(X_val_scaled, y_val_scaled, n_steps)
 
     # PyTorch数据准备
     X_train_tensor = torch.tensor(X_train, dtype=torch.float32).to(device)
@@ -443,14 +393,13 @@ def train_and_predict_lstm(ticker, data, X, y, save_dir, n_steps=30, num_epochs=
             x_input_tensor = torch.tensor(x_input.reshape(1, n_steps, X_train.shape[2]),
                                           dtype=torch.float32).to(device)
             y_pred = model(x_input_tensor)
-            y_pred_scaled = y_pred.cpu().numpy().flatten()[0]
-
+            
             # 反标准化预测值
-            y_pred_value = scaler_y.inverse_transform([[y_pred_scaled]])[0][0]
+            y_pred_value = scaler_y.inverse_transform(y_pred.cpu().numpy())[0][0]
 
             # 计算对应的原始数据索引
+            # 验证集的第一个预测对应于原始X中的 split_idx + n_steps 的位置
             original_idx = split_idx + n_steps + i
-            # 修复索引越界问题：确保original_idx不超出data和y的范围
             if original_idx < len(data) and original_idx < len(y):
                 predictions.append((1 + y_pred_value) * data['Close'].iloc[original_idx - 1])
                 test_indices.append(data.index[original_idx])
@@ -478,7 +427,7 @@ def save_predictions_with_indices(ticker, test_indices, predictions, save_dir):
     print(f'Saved predictions for {ticker} to {file_path}')
 
 
-def predict(ticker_name, stock_data, stock_features, save_dir, model_type='LSTM', epochs=500, batch_size=64,
+def predict(ticker_name, stock_data, stock_features, save_dir, model_type='LSTM', epochs=100, batch_size=64,
             learning_rate=0.001):
     all_predictions = {}
     prediction_metrics = {}
