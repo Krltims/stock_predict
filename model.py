@@ -234,7 +234,8 @@ def train_and_predict_gru(ticker, data, X, y, save_dir, n_steps=30, num_epochs=5
 
             # 计算对应的原始数据索引
             original_idx = split_idx + n_steps + i
-            if original_idx < len(data):
+            # 修复索引越界问题：确保original_idx不超出data和y的范围
+            if original_idx < len(data) and original_idx < len(y):
                 predictions.append((1 + y_pred_value) * data['Close'].iloc[original_idx - 1])
                 test_indices.append(data.index[original_idx])
                 predict_percentages.append(y_pred_value * 100)
@@ -449,7 +450,8 @@ def train_and_predict_lstm(ticker, data, X, y, save_dir, n_steps=30, num_epochs=
 
             # 计算对应的原始数据索引
             original_idx = split_idx + n_steps + i
-            if original_idx < len(data):
+            # 修复索引越界问题：确保original_idx不超出data和y的范围
+            if original_idx < len(data) and original_idx < len(y):
                 predictions.append((1 + y_pred_value) * data['Close'].iloc[original_idx - 1])
                 test_indices.append(data.index[original_idx])
                 predict_percentages.append(y_pred_value * 100)
