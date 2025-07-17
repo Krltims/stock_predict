@@ -92,7 +92,8 @@ class NeuralNetwork:
 
     def forward(self, input_data):
         hidden_layer = np.dot(input_data, self.parameters[0]) + self.parameters[-1]
-        output = np.dot(hidden_layer, self.parameters[1])
+        activated_hidden_layer = np.tanh(hidden_layer) 
+        output = np.dot(activated_hidden_layer, self.parameters[1])
         return output
 
     def get_parameters(self):
@@ -245,7 +246,7 @@ def process_stock(ticker, save_dir, model_type, window_size=30, initial_money=10
         stock_symbol_with_model = f"{ticker}_{model_type}"
 
         # Initialize components
-        prediction_model = NeuralNetwork(input_dim=window_size, hidden_dim=500, output_dim=3)
+        prediction_model = NeuralNetwork(input_dim=window_size, hidden_dim=128, output_dim=3)
         trading_agent = TradingStrategy(
             predictor=prediction_model,
             lookback_period=window_size,

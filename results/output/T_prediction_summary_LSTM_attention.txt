@@ -1,5 +1,0 @@
-Average Accuracy: 98.59210840394476
-Best Stock: T
-Worst Stock: T
-Average RMSE: 0.2843078783612937
-Average MAE: 0.21294878383907848

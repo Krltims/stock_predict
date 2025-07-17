@@ -1,5 +1,0 @@
-Average Accuracy: 98.8181543160795
-Best Stock: MS
-Worst Stock: MS
-Average RMSE: 1.3294395888472055
-Average MAE: 0.9783604653804083

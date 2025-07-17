@@ -132,34 +132,51 @@ def plot_cumulative_earnings(ticker, test_indices, actual_percentages, predict_p
         plt.close()
         return None
 
-def plot_accuracy_comparison(prediction_metrics, save_dir):
+def plot_accuracy_comparison(lstm_metrics, gru_metrics, save_dir):
     """
-    绘制所有股票预测准确度对比图
+    绘制所有股票在LSTM和GRU模型上的预测准确度分组对比图。
     
     参数:
-        prediction_metrics: 包含每个股票预测指标的字典
+        lstm_metrics: 包含每个股票在LSTM上预测指标的字典
+        gru_metrics: 包含每个股票在GRU上预测指标的字典
         save_dir: 图片保存的根目录
     返回:
         str: 保存的图片路径
     """
     try:
-        if not prediction_metrics:
-            print("No prediction metrics to plot")
+        if not lstm_metrics or not gru_metrics:
+            print("Metrics for one or both models are missing.")
             return None
-    
-        plt.figure(figsize=(15, 6))
-        accuracies = [metrics['accuracy'] * 100 for metrics in prediction_metrics.values()]
-        plt.bar(prediction_metrics.keys(), accuracies)
-        plt.title('Prediction Accuracy Across Stocks')
-        plt.xlabel('Stock')
-        plt.ylabel('Accuracy (%)')
-        plt.xticks(rotation=45)
-        plt.grid(True, alpha=0.3)
-        plt.tight_layout()
-    
+        
+        # 确保 tickers 对齐
+        tickers = sorted(list(lstm_metrics.keys()))
+        lstm_acc = [lstm_metrics[t]['accuracy'] * 100 for t in tickers]
+        gru_acc = [gru_metrics.get(t, {'accuracy': 0})['accuracy'] * 100 for t in tickers]
+
+        x = np.arange(len(tickers))  # the label locations
+        width = 0.35  # the width of the bars
+
+        fig, ax = plt.subplots(figsize=(18, 7))
+        rects1 = ax.bar(x - width/2, lstm_acc, width, label='LSTM')
+        rects2 = ax.bar(x + width/2, gru_acc, width, label='GRU')
+
+        # Add some text for labels, title and axes ticks
+        ax.set_ylabel('Accuracy (%)')
+        ax.set_title('Prediction Accuracy Comparison: LSTM vs. GRU')
+        ax.set_xticks(x)
+        ax.set_xticklabels(tickers, rotation=45, ha="right")
+        ax.legend()
+        ax.grid(True, axis='y', linestyle='--', alpha=0.6)
+
+        # Optional: Add data labels on top of bars
+        ax.bar_label(rects1, padding=3, fmt='%.1f')
+        ax.bar_label(rects2, padding=3, fmt='%.1f')
+
+        fig.tight_layout()
+
         prediction_dir = os.path.join(save_dir, 'pic')
         os.makedirs(prediction_dir, exist_ok=True)
-        save_path = os.path.join(prediction_dir, 'accuracy_comparison.png')
+        save_path = os.path.join(prediction_dir, 'accuracy_comparison_grouped.png')
         plt.savefig(save_path)
         plt.close()
 

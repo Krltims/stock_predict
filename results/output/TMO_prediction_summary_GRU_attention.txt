@@ -1,5 +1,0 @@
-Average Accuracy: 98.9664593556922
-Best Stock: TMO
-Worst Stock: TMO
-Average RMSE: 7.13003248631797
-Average MAE: 5.226048581419177

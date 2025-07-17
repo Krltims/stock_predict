@@ -1,5 +1,0 @@
-Average Accuracy: 98.16834342086051
-Best Stock: LLY
-Worst Stock: LLY
-Average RMSE: 13.414934211365429
-Average MAE: 9.963189750085304

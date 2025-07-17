@@ -1,5 +1,0 @@
-Average Accuracy: 99.35110372105292
-Best Stock: MCD
-Worst Stock: MCD
-Average RMSE: 2.345458613214375
-Average MAE: 1.8085332440611932

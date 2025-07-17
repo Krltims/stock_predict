@@ -1,5 +1,0 @@
-Average Accuracy: 99.31465550851797
-Best Stock: WM
-Worst Stock: WM
-Average RMSE: 1.6077425582790184
-Average MAE: 1.1306747677688902

@@ -1,5 +1,0 @@
-Average Accuracy: 99.11932432703156
-Best Stock: TMUS
-Worst Stock: TMUS
-Average RMSE: 1.6287067418709886
-Average MAE: 1.2321642870522098

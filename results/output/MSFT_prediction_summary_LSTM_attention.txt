@@ -1,5 +1,0 @@
-Average Accuracy: 98.88246921185122
-Best Stock: MSFT
-Worst Stock: MSFT
-Average RMSE: 4.746181202727228
-Average MAE: 3.7983729890805726

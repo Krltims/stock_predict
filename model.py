@@ -257,9 +257,9 @@ def get_stock_data(ticker, data_dir='data'):
 
 def format_feature(data):
     features = [
-        'Volume_yes', 'Year', 'Month', 'Day', 'MA5', 'MA10', 'MA20', 'RSI', 'MACD',
-        'VWAP', 'Upper_band', 'Lower_band', 'ATR',
-        'Close_yes', 'Open_yes', 'High_yes', 'Low_yes'
+        'Volume_yes', 'Year', 'Month', 'Day', 'MA5', 'MA10', 'MA20','MA50', 'RSI', 'MACD',
+        'VWAP', 'Upper_band', 'Lower_band', 'ATR', 'Prev_Close', 'ADX', '-DI', '+DI'
+        'Close_yes', 'Open_yes', 'High_yes', 'Low_yes', 'Volume_yes', 'OBV', 
     ]
     X = data[features].iloc[1:]
     y = data['Close'].pct_change().iloc[1:]
@@ -427,7 +427,7 @@ def save_predictions_with_indices(ticker, test_indices, predictions, save_dir, m
     print(f'Saved predictions for {ticker} ({model_type}) to {file_path}')
 
 
-def predict(ticker_name, stock_data, stock_features, save_dir, model_type, epochs=100, batch_size=64,
+def predict(ticker_name, stock_data, stock_features, save_dir, model_type='LSTM', epochs=100, batch_size=64,
             learning_rate=0.001):
     all_predictions = {}
     prediction_metrics = {}
@@ -462,9 +462,6 @@ def predict(ticker_name, stock_data, stock_features, save_dir, model_type, epoch
     print("\nPrediction metrics summary:")
     print(metrics_df.describe())
 
-    # 使用可视化工具绘制准确度对比图
-    plot_accuracy_comparison(prediction_metrics, save_dir)
-
     # 生成汇总报告
     summary = {
         'Average Accuracy': np.mean([m['accuracy'] * 100 for m in prediction_metrics.values()]),
@@ -498,6 +495,11 @@ if __name__ == "__main__":
     ]
 
     save_dir = 'results'  # 设置保存目录
+    
+    # 创建两个字典来分别收集指标
+    all_lstm_metrics = {}
+    all_gru_metrics = {}
+
     for ticker_name in tickers:
         try:
             print(f"\n正在处理股票: {ticker_name}")
@@ -505,23 +507,33 @@ if __name__ == "__main__":
             stock_features = format_feature(stock_data)
 
             # 使用带注意力机制的双向LSTM模型
-            predict(
+            lstm_metrics = predict(
                 ticker_name=ticker_name,
                 stock_data=stock_data,
                 stock_features=stock_features,
                 save_dir=save_dir,
                 model_type='LSTM'
             )
+            if lstm_metrics:
+                all_lstm_metrics[ticker_name] = lstm_metrics
 
             # 使用带注意力机制的双向GRU模型
-            predict(
+            gru_metrics = predict(
                 ticker_name=ticker_name,
                 stock_data=stock_data,
                 stock_features=stock_features,
                 save_dir=save_dir,
                 model_type='GRU'
             )
+            if gru_metrics:
+                all_gru_metrics[ticker_name] = gru_metrics
+                
         except Exception as e:
             print(f"处理股票 {ticker_name} 时发生错误: {str(e)}")
             print(f"跳过股票 {ticker_name}，继续处理下一个...")
             continue
+
+    # 在所有循环结束后，统一绘制对比图
+    print("\n所有股票处理完毕，正在生成最终对比图...")
+    plot_accuracy_comparison(all_lstm_metrics, all_gru_metrics, save_dir)
+    print("对比图已保存。")

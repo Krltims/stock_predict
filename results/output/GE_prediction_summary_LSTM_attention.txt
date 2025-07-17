@@ -1,5 +1,0 @@
-Average Accuracy: 98.87928289864719
-Best Stock: GE
-Worst Stock: GE
-Average RMSE: 1.299431967008965
-Average MAE: 0.9985154209969191

@@ -1,5 +1,0 @@
-Average Accuracy: 98.82561764420026
-Best Stock: BAC
-Worst Stock: BAC
-Average RMSE: 0.4662449204355036
-Average MAE: 0.3417185248695185

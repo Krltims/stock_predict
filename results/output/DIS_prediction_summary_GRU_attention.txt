@@ -1,5 +1,0 @@
-Average Accuracy: 98.82779579664394
-Best Stock: DIS
-Worst Stock: DIS
-Average RMSE: 1.467014142315445
-Average MAE: 1.028749344745529

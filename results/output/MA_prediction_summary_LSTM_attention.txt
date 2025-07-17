@@ -1,5 +1,0 @@
-Average Accuracy: 99.09546968867218
-Best Stock: MA
-Worst Stock: MA
-Average RMSE: 4.435202437901674
-Average MAE: 3.568607586456624

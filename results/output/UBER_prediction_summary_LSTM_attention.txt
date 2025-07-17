@@ -1,5 +1,0 @@
-Average Accuracy: 98.40468190971944
-Best Stock: UBER
-Worst Stock: UBER
-Average RMSE: 0.9310692877818628
-Average MAE: 0.7378721826057383
