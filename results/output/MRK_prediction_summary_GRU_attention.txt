@@ -1,0 +1,5 @@
+Average Accuracy: 99.09151353632988
+Best Stock: MRK
+Worst Stock: MRK
+Average RMSE: 1.2359723039325874
+Average MAE: 0.973897437802688

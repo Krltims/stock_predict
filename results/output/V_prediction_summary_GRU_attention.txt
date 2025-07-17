@@ -1,0 +1,5 @@
+Average Accuracy: 99.24098463420043
+Best Stock: V
+Worst Stock: V
+Average RMSE: 2.211527261566116
+Average MAE: 1.8095362386911082

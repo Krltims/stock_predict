@@ -173,7 +173,7 @@ def process_all():
     symbols = [
         'MSFT', 'AAPL', 'UBER', 'IBM', 'NVDA',
         'JPM', 'BAC', 'V', 'MS', 'MA',
-        'AMZN', 'MCD', 'NIKE', 'TSLA', 'SBUX',
+        'AMZN', 'MCD', 'NKE', 'TSLA', 'SBUX',
         'META', 'NFLX', 'TMUS', 'DIS', 'T',
         'LLY', 'TMO', 'MRK', 'ABBV', 'GILD',
         'WM', 'DE', 'BA', 'GE', 'HON',

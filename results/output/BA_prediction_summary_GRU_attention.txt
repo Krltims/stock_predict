@@ -1,0 +1,5 @@
+Average Accuracy: 98.79028113376278
+Best Stock: BA
+Worst Stock: BA
+Average RMSE: 3.643278045850362
+Average MAE: 2.605125321411606

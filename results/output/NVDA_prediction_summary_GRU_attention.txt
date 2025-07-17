@@ -1,0 +1,5 @@
+Average Accuracy: 97.99427820873922
+Best Stock: NVDA
+Worst Stock: NVDA
+Average RMSE: 1.1786170300007772
+Average MAE: 0.8672081033191349

@@ -1,0 +1,5 @@
+Average Accuracy: 99.17662782376169
+Best Stock: HON
+Worst Stock: HON
+Average RMSE: 2.1141753643115546
+Average MAE: 1.5926728985771494

@@ -413,21 +413,21 @@ def train_and_predict_lstm(ticker, data, X, y, save_dir, n_steps=30, num_epochs=
     return predict_result, test_indices, predictions, actual_percentages
 
 
-def save_predictions_with_indices(ticker, test_indices, predictions, save_dir):
+def save_predictions_with_indices(ticker, test_indices, predictions, save_dir, model_type):
     df = pd.DataFrame({
         'Date': test_indices,
         'Prediction': predictions
     })
 
-    file_path = os.path.join(save_dir, 'predictions', f'{ticker}_predictions.pkl')
+    file_path = os.path.join(save_dir, 'predictions', f'{ticker}_{model_type}_predictions.pkl')
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     with open(file_path, 'wb') as file:
         pickle.dump(df, file)
 
-    print(f'Saved predictions for {ticker} to {file_path}')
+    print(f'Saved predictions for {ticker} ({model_type}) to {file_path}')
 
 
-def predict(ticker_name, stock_data, stock_features, save_dir, model_type='LSTM', epochs=100, batch_size=64,
+def predict(ticker_name, stock_data, stock_features, save_dir, model_type, epochs=100, batch_size=64,
             learning_rate=0.001):
     all_predictions = {}
     prediction_metrics = {}
@@ -453,7 +453,7 @@ def predict(ticker_name, stock_data, stock_features, save_dir, model_type='LSTM'
                                     save_dir, model_type)
     prediction_metrics[ticker_name] = metrics
 
-    save_predictions_with_indices(ticker_name, test_indices, predictions, save_dir)
+    save_predictions_with_indices(ticker_name, test_indices, predictions, save_dir, model_type)
 
     # 保存预测指标
     os.makedirs(os.path.join(save_dir, 'output'), exist_ok=True)
@@ -491,7 +491,7 @@ if __name__ == "__main__":
     tickers = [
         'MSFT', 'AAPL', 'UBER', 'IBM', 'NVDA',
         'JPM', 'BAC', 'V', 'MS', 'MA',
-        'AMZN', 'MCD', 'NIKE', 'TSLA', 'SBUX',
+        'AMZN', 'MCD', 'NKE', 'TSLA', 'SBUX',
         'META', 'NFLX', 'TMUS', 'DIS', 'T',
         'LLY', 'TMO', 'MRK', 'ABBV', 'GILD',
         'WM', 'DE', 'BA', 'GE', 'HON',

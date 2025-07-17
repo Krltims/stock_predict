@@ -1,0 +1,5 @@
+Average Accuracy: 97.7555700148686
+Best Stock: TSLA
+Worst Stock: TSLA
+Average RMSE: 7.224002419965165
+Average MAE: 5.407860022622569

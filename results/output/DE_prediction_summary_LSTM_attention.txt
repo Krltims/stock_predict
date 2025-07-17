@@ -1,0 +1,5 @@
+Average Accuracy: 98.73130612644835
+Best Stock: DE
+Worst Stock: DE
+Average RMSE: 6.216939505948179
+Average MAE: 4.938435689752843

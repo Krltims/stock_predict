@@ -1,0 +1,5 @@
+Average Accuracy: 99.26002568312813
+Best Stock: IBM
+Worst Stock: IBM
+Average RMSE: 1.3819316690849206
+Average MAE: 1.054823071253039

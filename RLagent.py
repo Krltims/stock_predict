@@ -228,17 +228,21 @@ class TradingStrategy:
         return buy_points, sell_points, net_profit, roi_percentage
 
 
-def process_stock(ticker, save_dir, window_size=30, initial_money=10000, iterations=500):
+def process_stock(ticker, save_dir, model_type, window_size=30, initial_money=10000, iterations=500):
     try:
-        # Load prediction data
-        df = pd.read_pickle(f'{save_dir}/predictions/{ticker}_predictions.pkl')
-        print(f"\nProcessing {ticker}")
+        # Load prediction data based on model_type
+        prediction_file = f'{save_dir}/predictions/{ticker}_{model_type}_predictions.pkl'
+        print(f"\nProcessing {ticker} with agent based on {model_type} predictions")
+        df = pd.read_pickle(prediction_file)
         price_sequence = df.Prediction.values.tolist()
 
         # Configure parameters
         window_size = window_size
         step_size = 1
         initial_money = initial_money
+
+        # Create a unique symbol for this run to avoid overwriting outputs
+        stock_symbol_with_model = f"{ticker}_{model_type}"
 
         # Initialize components
         prediction_model = NeuralNetwork(input_dim=window_size, hidden_dim=500, output_dim=3)
@@ -248,7 +252,7 @@ def process_stock(ticker, save_dir, window_size=30, initial_money=10000, iterati
             price_data=price_sequence,
             step_size=step_size,
             init_capital=initial_money,
-            stock_symbol=ticker,
+            stock_symbol=stock_symbol_with_model,  # Use unique symbol
             output_path=save_dir
         )
 
@@ -259,7 +263,7 @@ def process_stock(ticker, save_dir, window_size=30, initial_money=10000, iterati
         buy_signals, sell_signals, profit, roi = trading_agent.execute_trades(save_dir)
 
         # Generate visualization
-        plot_trading_result(ticker, price_sequence, buy_signals, sell_signals, profit, roi, save_dir)
+        plot_trading_result(stock_symbol_with_model, price_sequence, buy_signals, sell_signals, profit, roi, save_dir)
 
         return {
             'total_gains': profit,
@@ -269,25 +273,27 @@ def process_stock(ticker, save_dir, window_size=30, initial_money=10000, iterati
         }
 
     except Exception as e:
-        print(f"Error processing {ticker}: {e}")
+        print(f"Error processing {ticker} with {model_type} predictions: {e}")
         return None
 
 
 def main():
     """Main execution function"""
     stock_list = [
-        'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA',
-        'JPM', 'BAC', 'C', 'WFC', 'GS',
-        'JNJ', 'PFE', 'MRK', 'ABBV', 'BMY',
-        'XOM', 'CVX', 'COP', 'SLB', 'BKR',
-        'DIS', 'NFLX', 'CMCSA', 'NKE', 'SBUX',
-        'CAT', 'DE', 'MMM', 'GE', 'HON'
+        'MSFT', 'AAPL', 'UBER', 'IBM', 'NVDA',
+        'JPM', 'BAC', 'V', 'MS', 'MA',
+        'AMZN', 'MCD', 'NKE', 'TSLA', 'SBUX',
+        'META', 'NFLX', 'TMUS', 'DIS', 'T',
+        'LLY', 'TMO', 'MRK', 'ABBV', 'GILD',
+        'WM', 'DE', 'BA', 'GE', 'HON',
     ]
     output_directory = 'results'
+    model_types = ['LSTM', 'GRU']
+
     for symbol in stock_list:
-        process_stock(symbol, output_directory)
+        for model_type in model_types:
+            process_stock(symbol, output_directory, model_type)
 
 
 if __name__ == "__main__":
     main()
-

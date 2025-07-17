@@ -1,0 +1,5 @@
+Average Accuracy: 98.57828266882659
+Best Stock: META
+Worst Stock: META
+Average RMSE: 5.371299624247573
+Average MAE: 4.29700881376341

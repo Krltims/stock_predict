@@ -1,0 +1,5 @@
+Average Accuracy: 99.0617170853042
+Best Stock: GILD
+Worst Stock: GILD
+Average RMSE: 0.9529709422029153
+Average MAE: 0.7266835250412016
