@@ -258,7 +258,7 @@ def get_stock_data(ticker, data_dir='data'):
 def format_feature(data):
     features = [
         'Volume_yes', 'Year', 'Month', 'Day', 'MA5', 'MA10', 'MA20','MA50', 'RSI', 'MACD',
-        'VWAP', 'Upper_band', 'Lower_band', 'ATR', 'Prev_Close', 'ADX', '-DI', '+DI'
+        'VWAP', 'Upper_band', 'Lower_band', 'ATR', 'Prev_Close', 'ADX', '-DI', '+DI',
         'Close_yes', 'Open_yes', 'High_yes', 'Low_yes', 'Volume_yes', 'OBV', 
     ]
     X = data[features].iloc[1:]
